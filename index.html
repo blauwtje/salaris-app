@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Salaris</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Zet thema vóór de eerste paint (geen flits van wit op een donker thema).
+    (function () {
+      try {
+        var act = localStorage.getItem('salaris-actief-profiel');
+        var raw = act ? localStorage.getItem('salaris-app-v1::' + act) : null;
+        if (!raw) raw = localStorage.getItem('salaris-app-v1');
+        var s = JSON.parse(raw || '{}') || {};
+        var i = s.instellingen || {};
+        var m = i.thema || 'systeem';
+        var dark = (m === 'donker') || (m === 'zwart') || (m === 'systeem' && window.matchMedia('(prefers-color-scheme:dark)').matches);
+        document.documentElement.dataset.theme = m === 'zwart' ? 'black' : (dark ? 'dark' : 'light');
+        if (i.accent) document.documentElement.style.setProperty('--accent', i.accent);
+        if (i.accent) document.documentElement.style.setProperty('--verdiend', i.accent);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <div id="app" class="shell"></div>
+  <div id="overlay" class="ovl hidden"></div>
+  <div id="live" class="sr-live" aria-live="polite"></div>
+
+  <script src="app/util.js"></script>
+  <script src="app/feestdagen.js"></script>
+  <script src="app/uren.js"></script>
+  <script src="app/belasting2026.js"></script>
+  <script src="app/reken.js"></script>
+  <script src="app/opslag.js"></script>
+  <script src="app/state.js"></script>
+  <script src="app/kalender.js"></script>
+  <script src="app/tijdkiezer.js"></script>
+  <script src="app/thema.js"></script>
+  <script src="app/ui.js"></script>
+  <script src="app/main.js"></script>
+</body>
+</html>
