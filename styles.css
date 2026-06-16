@@ -98,6 +98,8 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .profiel-kaart .pf-naam{ font-family:var(--head); font-weight:700; font-size:1.05rem; }
 .profiel-kaart .pf-vink{ position:absolute; top:.6rem; right:.6rem; display:inline-flex; color:var(--accent); }
 .profiel-kaart .pf-vink svg{ width:18px; height:18px; stroke-width:2.5; }
+.sync-fout{ color:var(--danger); font-size:.8rem; margin-top:.5rem; min-height:1em; }
+#sync-pass{ width:100%; }
 
 /* ---------- content + paginakop ---------- */
 .content{ flex:1; min-width:0; padding:1.6rem 1.9rem; display:flex; flex-direction:column; gap:1.2rem; overflow:hidden; }

@@ -2,6 +2,7 @@
   const S = window.Salaris;
   const store = window.localStorage;
   const TH = S.thema;
+  const SY = S.sync;
   let profiel = S.opslag.actiefProfiel(store);
   let appState = profiel ? S.opslag.laadProfiel(store, profiel) : S.opslag.defaultState();
   let weergave = appState.instellingen.standaardWeergave || 'netto';
@@ -13,6 +14,9 @@
   let overzichtBewerk = false; // indeling-bewerkmodus op overzicht
   let profielKiezerVerplicht = false; // eerste keer: profiel kiezen kan niet weggeklikt worden
   let versie = 0;
+  let wachtwoord = localStorage.getItem('salaris-sync-pass') || null; // gedeeld sync-wachtwoord, per apparaat onthouden
+  let syncStaat = wachtwoord ? 'bezig' : (S.sync.configured() ? 'uit' : 'nvt');
+  let pushTimer = null, pushPending = null;
 
   const appEl = document.getElementById('app');
   const ovlEl = document.getElementById('overlay');
@@ -21,10 +25,81 @@
 
   const nuMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
   const profielNaam = () => { const p = S.opslag.PROFIELEN.find(x => x.id === profiel); return p ? p.naam : ''; };
-  const ctx = () => ({ state: appState, weergave, zicht, pagina, vandaagIso: S.util.isoDate(new Date()), nuMin: nuMin(), highlightIso, overzichtBewerk, versie, profiel, profielen: S.opslag.PROFIELEN, profielNaam: profielNaam() });
-  const bewaar = () => { versie++; if (profiel) S.opslag.bewaarProfiel(store, profiel, appState); };
+  const ctx = () => ({ state: appState, weergave, zicht, pagina, vandaagIso: S.util.isoDate(new Date()), nuMin: nuMin(), highlightIso, overzichtBewerk, versie, profiel, profielen: S.opslag.PROFIELEN, profielNaam: profielNaam(), syncBeschikbaar: SY.configured(), syncAan: !!wachtwoord, syncTekst: syncTekstVan(syncStaat) });
+  const bewaar = () => {
+    versie++;
+    if (!profiel) return;
+    const nu = new Date().toISOString();
+    zetTsLokaal(profiel, nu);
+    S.opslag.bewaarProfiel(store, profiel, appState);
+    syncPush(profiel, nu);
+  };
   function openProfielKiezer(verplicht) { profielKiezerVerplicht = !!verplicht; openOverlay(S.ui.profielKiezerHTML(ctx())); }
   const announce = t => { liveEl.textContent = t; };
+
+  // ---------- cloud-sync (versleuteld, per profiel) ----------
+  const TS_KEY = 'salaris-sync-ts';
+  function tsLokaal(id) { try { return (JSON.parse(localStorage.getItem(TS_KEY) || '{}'))[id] || null; } catch { return null; } }
+  function zetTsLokaal(id, ts) { let m = {}; try { m = JSON.parse(localStorage.getItem(TS_KEY) || '{}'); } catch {} m[id] = ts; localStorage.setItem(TS_KEY, JSON.stringify(m)); }
+  function profielHeeftData(st) { return !!(st && st.dagen && Object.keys(st.dagen).length); }
+  function syncTekstVan(s) {
+    return s === 'ok' ? 'Gesynchroniseerd met de cloud.'
+      : s === 'bezig' ? 'Synchroniseren…'
+      : s === 'offline' ? 'Offline — lokaal opgeslagen, synct later vanzelf.'
+      : s === 'badpass' ? 'Wachtwoord klopt niet met de cloud-gegevens.'
+      : s === 'uit' ? 'Niet ingeschakeld op dit apparaat.'
+      : '';
+  }
+  function syncStatus(s) { syncStaat = s; if (pagina === 'instellingen' && ovlEl.classList.contains('hidden')) renderContent(); }
+  function syncPush(id, ts, snapshot) {
+    if (!wachtwoord || !SY.configured()) return;
+    pushPending = { id, ts, state: snapshot || appState };
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(async () => {
+      const job = pushPending; pushPending = null; if (!job) return;
+      try { await SY.push(job.id, wachtwoord, job.state, job.ts); syncStatus('ok'); }
+      catch (e) { syncStatus('offline'); }
+    }, 800);
+  }
+  async function syncPull(id) {
+    if (!wachtwoord || !SY.configured() || id !== profiel) return;
+    let res;
+    try { res = await SY.pull(id, wachtwoord); }
+    catch (e) { syncStatus('offline'); return; }
+    if (id !== profiel) return; // tijdens het wachten van profiel gewisseld
+    if (res === null) { // nog geen cloud-rij: duw lokale data omhoog als die er is
+      if (profielHeeftData(appState)) { const ts = tsLokaal(id) || new Date().toISOString(); zetTsLokaal(id, ts); syncPush(id, ts); }
+      syncStatus('ok'); return;
+    }
+    if (res.decryptFailed) { syncStatus('badpass'); return; }
+    const lokaal = tsLokaal(id);
+    // Nooit eerder gesynct op dit apparaat: cloud wint alleen als lokaal leeg is (beschermt bestaande data).
+    const adopt = lokaal ? (new Date(res.updatedAt) > new Date(lokaal)) : !profielHeeftData(appState);
+    if (adopt) {
+      appState = res.state; weergave = appState.instellingen.standaardWeergave || 'netto';
+      zetTsLokaal(id, res.updatedAt); S.opslag.bewaarProfiel(store, id, appState);
+      versie++; pasToeUiterlijk(); renderApp();
+    } else {
+      const ts = tsLokaal(id) || new Date().toISOString(); zetTsLokaal(id, ts); syncPush(id, ts);
+    }
+    syncStatus('ok');
+  }
+  async function pasWachtwoordToe(pass) {
+    try {
+      for (const p of S.opslag.PROFIELEN) {
+        const res = await SY.pull(p.id, pass);
+        if (res && res.decryptFailed) return { ok: false };
+        if (res && res.state) return { ok: true };
+      }
+    } catch (e) { return { ok: true }; } // offline: kan niet valideren, voorlopig accepteren
+    return { ok: true };
+  }
+  function openWachtwoordPrompt() { openOverlay(S.ui.wachtwoordPromptHTML(ctx())); }
+  function naProfiel() {
+    if (!SY.configured()) return;
+    if (!wachtwoord) openWachtwoordPrompt();
+    else { syncStaat = 'bezig'; syncPull(profiel); }
+  }
   function widgetCfg(id) {
     const arr = appState.instellingen.overzichtWidgets || (appState.instellingen.overzichtWidgets = []);
     let w = arr.find(x => x.id === id);
@@ -149,7 +224,22 @@
       }
       profielKiezerVerplicht = false;
       ovlEl.classList.add('hidden'); ovlEl.innerHTML = '';
-      pasToeUiterlijk(); renderApp();
+      pasToeUiterlijk(); renderApp(); naProfiel();
+      return;
+    }
+    if (a === 'sync-instellen') { openWachtwoordPrompt(); return; }
+    if (a === 'sync-uit') { wachtwoord = null; localStorage.removeItem('salaris-sync-pass'); syncStatus('uit'); return; }
+    if (a === 'sync-wachtwoord-ok') {
+      const inp = ovlEl.querySelector('#sync-pass');
+      const foutEl = ovlEl.querySelector('[data-rol="sync-fout"]');
+      const pass = inp ? inp.value.trim() : '';
+      if (!pass) { if (foutEl) foutEl.textContent = 'Vul een wachtwoord in.'; return; }
+      el.disabled = true; if (foutEl) foutEl.textContent = 'Controleren…';
+      pasWachtwoordToe(pass).then(r => {
+        if (!r.ok) { if (foutEl) foutEl.textContent = 'Dat wachtwoord klopt niet met de cloud-gegevens.'; el.disabled = false; return; }
+        wachtwoord = pass; localStorage.setItem('salaris-sync-pass', pass);
+        closeOverlay(); announce('Synchronisatie ingeschakeld'); syncStaat = 'bezig'; syncPull(profiel);
+      });
       return;
     }
     if (a === 'weergave') { weergave = el.dataset.val; if (bewerk) patchDag(); else renderContent(); return; }
@@ -271,7 +361,12 @@
   }
 
   ovlEl.addEventListener('click', e => { if (e.target === ovlEl && !profielKiezerVerplicht) closeOverlay(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !ovlEl.classList.contains('hidden') && !profielKiezerVerplicht) closeOverlay(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target && e.target.id === 'sync-pass') { const b = ovlEl.querySelector('[data-action="sync-wachtwoord-ok"]'); if (b) b.click(); return; }
+    if (e.key === 'Escape' && !ovlEl.classList.contains('hidden') && !profielKiezerVerplicht) closeOverlay();
+  });
+  window.addEventListener('online', () => syncPull(profiel));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncPull(profiel); });
 
   // ---- drag & drop werkuren tussen kalenderdagen ----
   let dragSrcIso = null;
@@ -345,7 +440,7 @@
 
   pasToeUiterlijk();
   renderApp();
-  if (!profiel) openProfielKiezer(true);
+  if (!profiel) openProfielKiezer(true); else naProfiel();
   let laatsteProgStatus = null;
   setInterval(() => {
     if (!ovlEl.classList.contains('hidden')) { patchVoortgang(); return; }
