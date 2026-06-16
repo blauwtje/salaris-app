@@ -6,6 +6,9 @@
   const URL_BASE = 'https://gtnzuvyntdmbttlxlrme.supabase.co';
   const KEY = 'sb_publishable_1HaquDrwFzXiRmY0JhbP4g_9MaB5fWU';
   const REST = URL_BASE + '/rest/v1/profielen';
+  // App-brede sleutel: geen wachtwoord meer. De payload blijft ciphertext-at-rest in Supabase,
+  // maar dit is geen echte geheimhouding (de bron is publiek op GitHub Pages) — alleen obfuscatie.
+  const APP_SECRET = 'salaris-app::vast::2026::thomas-aleyna';
 
   const webcrypto = (typeof globalThis !== 'undefined' && globalThis.crypto && globalThis.crypto.subtle)
     ? globalThis.crypto
@@ -25,7 +28,7 @@
       base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
   }
   // Token-formaat: "v1:" + base64( salt(16) | iv(12) | ciphertext ). Salt+iv reizen mee, dus elk
-  // bericht is zelfdragend en op elk apparaat met hetzelfde wachtwoord te ontsleutelen.
+  // bericht is zelfdragend en op elk apparaat met dezelfde sleutel te ontsleutelen.
   async function encrypt(plain, pass) {
     const salt = webcrypto.getRandomValues(new Uint8Array(16));
     const iv = webcrypto.getRandomValues(new Uint8Array(12));
@@ -46,19 +49,19 @@
   function configured() { return /^https:\/\//.test(URL_BASE) && KEY.length > 20; }
   const H = () => ({ apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' });
 
-  // Haalt het profiel op. Retourneert null (geen rij), {decryptFailed,updatedAt} (verkeerd
-  // wachtwoord of onleesbaar) of {state,updatedAt}. Gooit bij netwerk-/serverfout.
-  async function pull(id, pass) {
+  // Haalt het profiel op. Retourneert null (geen rij), {decryptFailed,updatedAt} (onleesbaar,
+  // bv. een rij uit het oude wachtwoord-tijdperk) of {state,updatedAt}. Gooit bij netwerk-/serverfout.
+  async function pull(id) {
     const r = await fetch(`${REST}?id=eq.${encodeURIComponent(id)}&select=payload,updated_at`, { headers: H() });
     if (!r.ok) throw new Error('pull ' + r.status);
     const rows = await r.json();
     if (!rows.length) return null;
     const row = rows[0];
-    try { return { state: JSON.parse(await decrypt(row.payload, pass)), updatedAt: row.updated_at }; }
+    try { return { state: JSON.parse(await decrypt(row.payload, APP_SECRET)), updatedAt: row.updated_at }; }
     catch (e) { return { decryptFailed: true, updatedAt: row.updated_at }; }
   }
-  async function push(id, pass, state, updatedAt) {
-    const payload = await encrypt(JSON.stringify(state), pass);
+  async function push(id, state, updatedAt) {
+    const payload = await encrypt(JSON.stringify(state), APP_SECRET);
     const r = await fetch(REST, {
       method: 'POST',
       headers: { ...H(), Prefer: 'resolution=merge-duplicates' },

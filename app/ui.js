@@ -432,9 +432,7 @@
         <section class="set-sec wide"><h3 class="set-h">${ICON.persoon}Profiel</h3>
           <div class="set-row"><div class="info"><div class="name">Wie ben je?</div><div class="hint">Elk profiel houdt eigen uren én instellingen bij.</div></div>
             <button class="btn" data-action="wissel-profiel">${ICON.wissel}${esc(ctx.profielNaam || 'Kies profiel')}</button></div>
-          ${ctx.syncBeschikbaar ? `<div class="set-row"><div class="info"><div class="name">Synchronisatie tussen apparaten</div><div class="hint">${esc(ctx.syncTekst || '')}</div></div>
-            <button class="btn" data-action="sync-instellen">${ICON.up2}${ctx.syncAan ? 'Wijzigen' : 'Inschakelen'}</button></div>
-          ${ctx.syncAan ? `<div class="set-row" style="border:0;padding-top:0"><div class="info"></div><button class="btn ghost" data-action="sync-uit" style="color:var(--danger)">Synchronisatie op dit apparaat uitzetten</button></div>` : ''}` : ''}
+          ${ctx.syncBeschikbaar ? `<div class="set-row"><div class="info"><div class="name">Synchronisatie tussen apparaten</div><div class="hint">Staat automatisch aan. ${esc(ctx.syncTekst || '')}</div></div></div>` : ''}
         </section>
         <section class="set-sec wide"><h3 class="set-h">${ICON.euro}Loon &amp; toeslag</h3>
           <div class="set-grid2">
@@ -616,25 +614,10 @@
     const sluit = ctx.profiel ? `<button class="x" data-action="sluit" aria-label="Sluiten">${ICON.kruis}</button>` : '';
     return `<div class="sheet profiel-sheet" role="dialog" aria-modal="true" aria-label="Kies profiel">
       <div class="sh-head"><div><div class="t">Wie ben je?</div></div>${sluit}</div>
-      <p class="pf-uitleg">Kies je profiel. Ieder houdt z'n eigen uren bij — gescheiden bewaard op dit apparaat.</p>
+      <p class="pf-uitleg">Kies je profiel. Ieder houdt z'n eigen uren bij; je blijft op dit apparaat ingelogd en alles synchroniseert automatisch tussen je apparaten.</p>
       <div class="profiel-grid">${kaarten}</div>
     </div>`;
   }
 
-  function wachtwoordPromptHTML(ctx) {
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Synchronisatie">
-      <div class="sh-head"><div><div class="t">Synchroniseren tussen apparaten</div></div>
-        <button class="x" data-action="sluit" aria-label="Sluiten">${ICON.kruis}</button></div>
-      <p class="pf-uitleg">Voer het <b>gedeelde wachtwoord</b> in dat jij en Aleyna allebei gebruiken. Daarmee worden je uren, thema en instellingen versleuteld en op al je apparaten gesynchroniseerd. Vul op een nieuw apparaat hetzelfde wachtwoord in.</p>
-      <input type="password" class="txt" id="sync-pass" placeholder="Gedeeld wachtwoord" autocomplete="off">
-      <div data-rol="sync-fout" class="sync-fout"></div>
-      <div class="actions" style="margin-top:.9rem">
-        <button class="btn primary" data-action="sync-wachtwoord-ok" style="flex:1">${ICON.slot}Inschakelen</button>
-        <button class="btn" data-action="sluit">Overslaan</button>
-      </div>
-      <div class="hint" style="margin-top:.6rem">Alleen op dit apparaat onthouden. Vergeet je 't, kies dan een nieuw wachtwoord (oude cloud-data wordt dan onleesbaar).</div>
-    </div>`;
-  }
-
-  return { shellHTML, pageHTML, dagDetailHTML, breakdownHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, tijdlijnHTML, profielKiezerHTML, wachtwoordPromptHTML };
+  return { shellHTML, pageHTML, dagDetailHTML, breakdownHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, tijdlijnHTML, profielKiezerHTML };
 });
