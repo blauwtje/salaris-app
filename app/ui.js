@@ -241,18 +241,20 @@
     const pd = map[c.iso];
     const heeftWerk = !!pd;
 
+    const heeftNotitie = !!(state.dagen[c.iso] && state.dagen[c.iso].notitie);
     const marks = [];
     if (heeftWerk) marks.push(`<span class="mk loc">${state.dagen[c.iso].locatie === 'thuis' ? 'T' : 'K'}</span>`);
     if (c.hrDeadline) marks.push('<span class="mk hr" title="Uren indienen"></span>');
     if (c.salarisdag) marks.push('<span class="mk pay">€</span>');
     if (c.toeslag > 0) marks.push(`<span class="mk toesl" title="Toeslag +${Math.round(c.toeslag * 100)}%">+${Math.round(c.toeslag * 100)}%</span>`);
+    if (heeftNotitie) marks.push('<span class="mk note" title="Heeft opmerking"></span>');
 
     const specialLabel = c.hrDeadline ? `<div class="c-special hr">Uren indienen</div>` : c.salarisdag ? `<div class="c-special pay">Salaris</div>` : '';
 
     let werk = '';
     if (pd) { const bedrag = weergave === 'bruto' ? pd.bruto : pd.netto; werk = `<div class="c-work"><span class="u">${U.fmtUren(pd.betaaldeUren)}</span><span class="e">${eK(bedrag)}</span></div>`; }
 
-    const cls = ['c']; if (c.vandaag) cls.push('today'); if (c.zondag) cls.push('weekend'); if (c.toeslag > 0) cls.push('toeslagdag'); if (heeftWerk) cls.push('worked', 'has-content'); if (ctx.highlightIso === c.iso) cls.push('flash');
+    const cls = ['c']; if (c.vandaag) cls.push('today'); if (c.zondag) cls.push('weekend'); if (c.toeslag > 0) cls.push('toeslagdag'); if (heeftWerk) cls.push('worked', 'has-content'); if (heeftNotitie) cls.push('has-note'); if (ctx.highlightIso === c.iso) cls.push('flash');
     const draggable = heeftWerk ? ' draggable="true"' : '';
     return `<div class="${cls.join(' ')}"${draggable} data-action="dag" data-iso="${c.iso}">
       <div class="c-top"><span class="num">${c.dagNummer}</span><span class="marks">${marks.join('')}</span></div>
@@ -271,7 +273,7 @@
     const urenMaand = ST.urenInMaand(state.dagen, zicht.jaar, zicht.maand);
 
     const VOLDAG = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
-    const dow = VOLDAG.map((d, i) => `<b class="${i >= 5 ? 'we' : ''}">${d}</b>`).join('');
+    const dow = VOLDAG.map((d, i) => `<b class="${i >= 5 ? 'we' : ''}" title="${d}"><span class="dow-lg">${d}</span><span class="dow-sm">${d.slice(0, 2)}</span></b>`).join('');
 
     return `${paginakopHTML('Kalender', weergave, true)}
       <div class="kal-wrap">
@@ -301,6 +303,7 @@
               <span class="leg-row stat"><span class="leg-dot circ" style="background:var(--accent)"></span><span>19e: indienen</span></span>
               <span class="leg-row stat"><span class="leg-dot circ" style="background:var(--verdiend-soft)"></span><span>25e: salaris</span></span>
               <span class="leg-row stat"><span class="leg-dot" style="background:var(--surf3);border:1px solid var(--border-2)"></span><span>feestdag</span></span>
+              <span class="leg-row stat"><span class="leg-dot" style="background:color-mix(in srgb,#F472B6 40%,var(--surf2))"></span><span>opmerking</span></span>
             </div>
           </div>
         </aside>

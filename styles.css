@@ -235,7 +235,8 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .calhead .today-btn{ margin-left:auto; min-height:40px; padding:0 1rem; border:1px solid var(--border); border-radius:11px; background:var(--surf2); color:var(--accent); font:600 .82rem var(--body); transition:background var(--t); }
 .calhead .today-btn:hover{ background:var(--surf3); }
 .dow{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:8px; }
-.dow b{ text-align:center; font:600 .76rem var(--body); color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.dow b{ text-align:center; font:600 .76rem var(--body); color:var(--muted); text-transform:uppercase; letter-spacing:.04em; overflow:hidden; white-space:nowrap; }
+.dow-sm{ display:none; }
 .dow b.we{ color:var(--faint); }
 .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
 .c{ position:relative; min-height:74px; border-radius:12px; background:var(--surf2); border:1px solid var(--border); display:flex; flex-direction:column; padding:6px 0 6px; overflow:hidden; transition:transform var(--t), box-shadow var(--t), border-color var(--t); }
@@ -252,6 +253,10 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .c.worked .num{ color:color-mix(in srgb, var(--verdiend) 70%, var(--text)); font-weight:700; }
 .c.worked.weekend{ background:color-mix(in srgb, var(--verdiend) 10%, var(--weekend)); }
 .c.worked.today{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), var(--shadow); }
+.c.has-note { background:color-mix(in srgb,#F472B6 10%,var(--surf2)); }
+.c.has-note.worked { background:color-mix(in srgb,#F472B6 6%,color-mix(in srgb,var(--verdiend) 13%,var(--surf2))); }
+.c.has-note.weekend { background:color-mix(in srgb,#F472B6 8%,var(--weekend)); }
+.c.has-note.worked.weekend { background:color-mix(in srgb,#F472B6 4%,color-mix(in srgb,var(--verdiend) 10%,var(--weekend))); }
 .c.holi{ background:repeating-linear-gradient(135deg, var(--surf2), var(--surf2) 7px, var(--surf3) 7px, var(--surf3) 14px); cursor:not-allowed; } .c.holi .num{ color:var(--disabledInk); font-weight:500; }
 .c.holi:hover{ transform:none; box-shadow:none; }
 .c .lock{ width:13px; height:13px; stroke:var(--disabledInk); stroke-width:2.2; }
@@ -263,6 +268,7 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .mk.pay{ width:17px; height:17px; border-radius:50%; background:var(--verdiend-soft); color:var(--verdiend); font:800 .62rem var(--body); }
 .mk.loc{ display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:5px; background:var(--surf3); font:700 .6rem var(--body); color:var(--muted); letter-spacing:0; }
 .mk.toesl { background:var(--suntint); color:#7a4b00; font-size:.6rem; font-weight:700; padding:0 .25rem; border-radius:5px; }
+.mk.note { width:7px; height:7px; border-radius:50%; background:#F472B6; flex-shrink:0; }
 .c.toeslagdag { box-shadow:inset 3px 0 0 var(--suntint); }
 
 /* gewerkte uren + bedrag onderin */
@@ -401,6 +407,7 @@ input[type=color].swatch::-moz-color-swatch{ border:0; border-radius:9px; }
 @media (max-width:520px){
   .c-top{ padding:0 4px; } .c .num{ font-size:.82rem; } .c .mk.loc{ display:none; }
   .c-work{ padding:2px 3px 0; } .c-work .u{ font-size:.58rem; } .c-work .e{ font:800 .7rem var(--body); letter-spacing:-.02em; }
+  .dow-lg{ display:none; } .dow-sm{ display:inline; }
 }
 @media (max-width:460px){ .grid{ grid-template-columns:1fr; } .card.span2{ grid-column:span 1; } }
 
