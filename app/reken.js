@@ -21,8 +21,9 @@
 
   function dagBruto(dag, inst) {
     let klok = uren.klokuren(dag.van, dag.tot);
-    if (dag.extra && dag.extra.length) dag.extra.forEach(e => { klok += uren.klokuren(e.van, e.tot); });
-    const betaald = uren.betaaldeUren(klok);
+    const heeftExtraDiensten = dag.extra && dag.extra.length > 0;
+    if (heeftExtraDiensten) dag.extra.forEach(e => { klok += uren.klokuren(e.van, e.tot); });
+    const betaald = heeftExtraDiensten ? klok : uren.betaaldeUren(klok);
     const basisloon = betaald * inst.uurloon;
     const toeslag = betaald * inst.uurloon * toeslagFractie(dag, inst);
     const reiskosten = dag.locatie === 'kantoor' ? inst.reiskostenPerKantoordag : 0;

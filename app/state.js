@@ -4,8 +4,9 @@
 })(typeof self !== 'undefined' ? self : this, function (uren) {
   function betaaldVan(data) {
     let klok = uren.klokuren(data.van, data.tot);
-    if (data.extra && data.extra.length) data.extra.forEach(e => { klok += uren.klokuren(e.van, e.tot); });
-    return uren.betaaldeUren(klok);
+    const heeftExtraDiensten = data.extra && data.extra.length > 0;
+    if (heeftExtraDiensten) data.extra.forEach(e => { klok += uren.klokuren(e.van, e.tot); });
+    return heeftExtraDiensten ? klok : uren.betaaldeUren(klok);
   }
   function urenInMaand(dagen, jaar, maand) {
     const pre = `${jaar}-${String(maand).padStart(2, '0')}`;
