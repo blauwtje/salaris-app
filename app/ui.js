@@ -150,12 +150,18 @@
     const vd = state.dagen[vandaagIso];
     let progCard;
     if (vd) {
-      const v = UR.voortgang(vd.van, vd.tot, ctx.nuMin);
-      const meta = v.status === 'voor' ? `begint om ${vd.van}` : v.status === 'klaar' ? 'werkdag klaar' : `<b>${Math.round(v.pct)}%</b> · nog ${resterend(v.resterendeMin)}`;
+      const vdShifts = [{ van: vd.van, tot: vd.tot }, ...(vd.extra || [])];
+      const v = UR.voortgangShifts(vdShifts, ctx.nuMin);
+      const bezig = v.status === 'bezig' || v.status === 'pauze';
+      const meta = v.status === 'voor' ? `begint om ${v.eersteVan}`
+        : v.status === 'klaar' ? 'werkdag klaar'
+        : v.status === 'pauze' ? `pauze · volgende dienst om ${v.volgendeVan}`
+        : `<b>${Math.round(v.pct)}%</b> · nog ${resterend(v.resterendeMin)}`;
+      const tijdTekst = vdShifts.map(s => `${s.van}–${s.tot}`).join(', ');
       progCard = `<div class="card">
-        <div class="prog-top"><div class="lab">${ICON.klok}Werkdag vandaag</div>${v.status === 'bezig' ? '<span class="live"><span class="pd"></span>Bezig</span>' : ''}</div>
+        <div class="prog-top"><div class="lab">${ICON.klok}Werkdag vandaag</div>${bezig ? '<span class="live"><span class="pd"></span>Bezig</span>' : ''}</div>
         <div class="track"><div class="fill" style="width:${v.pct}%"></div></div>
-        <div class="prog-meta"><span>${vd.van} – ${vd.tot} · ${vd.locatie}</span><span>${meta}</span></div></div>`;
+        <div class="prog-meta"><span>${tijdTekst} · ${vd.locatie}</span><span>${meta}</span></div></div>`;
     } else {
       progCard = `<div class="card"><div class="lab">${ICON.klok}Werkdag vandaag</div><div class="sub muted" style="margin-top:.6rem">Vandaag geen uren ingevuld.</div></div>`;
     }
@@ -491,10 +497,15 @@
     const isVandaag = b.iso === ctx.vandaagIso;
     const geldig = U.parseTime(b.tot) > U.parseTime(b.van);
     if (!isVandaag || !geldig) return '';
-    const v = UR.voortgang(b.van, b.tot, ctx.nuMin);
-    const meta = v.status === 'voor' ? `begint om ${b.van}` : v.status === 'klaar' ? 'werkdag klaar' : `<b>${Math.round(v.pct)}%</b> — nog ${resterend(v.resterendeMin)} tot ${b.tot}`;
+    const shifts = [{ van: b.van, tot: b.tot }, ...(b.extra || [])];
+    const v = UR.voortgangShifts(shifts, ctx.nuMin);
+    const bezig = v.status === 'bezig' || v.status === 'pauze';
+    const meta = v.status === 'voor' ? `begint om ${v.eersteVan}`
+      : v.status === 'klaar' ? 'werkdag klaar'
+      : v.status === 'pauze' ? `pauze · volgende dienst om ${v.volgendeVan}`
+      : `<b>${Math.round(v.pct)}%</b> — nog ${resterend(v.resterendeMin)} tot ${v.huidigeTot}`;
     return `<div class="card prog-card">
-      <div class="prog-meta" style="margin-bottom:.4rem"><span class="lab" style="margin:0">Voortgang werkdag</span>${v.status === 'bezig' ? '<span class="live"><span class="pd"></span>Bezig</span>' : ''}</div>
+      <div class="prog-meta" style="margin-bottom:.4rem"><span class="lab" style="margin:0">Voortgang werkdag</span>${bezig ? '<span class="live"><span class="pd"></span>Bezig</span>' : ''}</div>
       <div class="track"><div class="fill" style="width:${v.pct}%"></div></div>
       <div class="prog-meta" style="margin-top:.4rem"><span>${meta}</span></div></div>`;
   }
