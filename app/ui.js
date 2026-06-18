@@ -504,7 +504,7 @@
     const { state } = ctx;
     const inst = state.instellingen;
     const dt = new Date(b.iso + 'T00:00:00');
-    const dd = REK.dagBruto({ datum: b.iso, van: b.van, tot: b.tot, locatie: b.locatie, zondagToeslag: b.zondagToeslag }, inst);
+    const dd = REK.dagBruto({ datum: b.iso, van: b.van, tot: b.tot, extra: b.extra, locatie: b.locatie, zondagToeslag: b.zondagToeslag }, inst);
     const brutoDag = dd.basisloon + dd.toeslag + dd.reiskosten;
     let bd = `<div class="row"><span class="k">Gewerkt</span><span class="v" style="color:var(--muted);font-weight:500">${U.fmtUren(dd.klokuren)} → <b style="color:var(--text)">${U.fmtUren(dd.betaaldeUren)} betaald</b></span></div>
       <div class="row"><span class="k">Basisloon <span class="f">${U.fmtUren(dd.betaaldeUren)} × ${U.fmtEuro(inst.uurloon)}</span></span><span class="v">${U.fmtEuro(dd.basisloon)}</span></div>`;
