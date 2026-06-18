@@ -599,3 +599,20 @@ button:focus-visible, a:focus-visible, [data-action]:focus-visible, .swatch:focu
   .cal{ gap:4px; }
   .c{ min-height:58px; }
 }
+
+/* Urenkaart-tab */
+.uk-wrap{ display:grid; gap:1rem; }
+.uk-velden{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.6rem; }
+.uk-veld{ display:flex; flex-direction:column; gap:.25rem; }
+.uk-veld label{ font:600 .69rem var(--body); letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
+.uk-veld input{ border-radius:var(--r-input); background:var(--surf2); border:1px solid var(--border); padding:.55rem .7rem; font:500 .9rem var(--body); color:var(--text); transition:border-color var(--t); }
+.uk-veld input:focus{ outline:0; border-color:var(--accent); }
+.uk-previews{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1rem; }
+.uk-maand{ background:var(--surf); border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--shadow-sm); padding:.9rem 1rem; }
+.uk-maand-kop{ font-weight:700; margin-bottom:.5rem; }
+.uk-tabel{ width:100%; border-collapse:collapse; font:500 .82rem var(--body); }
+.uk-tabel th{ text-align:left; color:var(--muted); font-weight:600; padding:.2rem .3rem; }
+.uk-tabel td{ padding:.15rem .3rem; border-top:1px solid var(--border); }
+.uk-tabel tr.uk-leeg td{ color:var(--muted); opacity:.45; }
+.uk-uren{ text-align:right; }
+.uk-totalen{ display:flex; flex-wrap:wrap; gap:.8rem; margin-top:.6rem; font-size:.8rem; color:var(--muted); }

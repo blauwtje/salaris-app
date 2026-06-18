@@ -15,6 +15,7 @@
         thema: 'systeem', accent: '#6C63FF',
         zondagToeslag: false,
         themaOverrides: {},
+        urenkaart: { naam: '', adres: '', geboortedatum: '', bsn: '', iban: '', reiskosten: '', contract: '' },
         overzichtWidgets: [
           { id: 'week', zicht: true, groot: false },
           { id: 'maand', zicht: true, groot: false },

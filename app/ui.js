@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const deps = r => [r.util, r.uren, r.reken, r.state, r.kalender, r.feestdagen, r.tijdkiezer, r.thema];
+  const deps = r => [r.util, r.uren, r.reken, r.state, r.kalender, r.feestdagen, r.tijdkiezer, r.thema, r.excel];
   if (typeof module !== 'undefined' && module.exports) module.exports = factory();
   else { root.Salaris = root.Salaris || {}; root.Salaris.ui = factory(...deps(root.Salaris)); }
-})(typeof self !== 'undefined' ? self : this, function (util, uren, reken, state, kalender, feestdagen, tijdkiezer, thema) {
+})(typeof self !== 'undefined' ? self : this, function (util, uren, reken, state, kalender, feestdagen, tijdkiezer, thema, excel) {
   const S = typeof self !== 'undefined' ? self.Salaris : {};
   const U = util || S.util;
   const REK = reken || S.reken;
@@ -12,6 +12,7 @@
   const FD = feestdagen || S.feestdagen;
   const TK = tijdkiezer || S.tijdkiezer;
   const TH = thema || S.thema;
+  const EX = excel || S.excel;
 
   const MAAND = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -106,6 +107,7 @@
         ${navItem('overzicht', p, ICON.maand, 'Overzicht')}
         ${navItem('kalender', p, ICON.week, 'Kalender')}
         ${navItem('loonstrook', p, ICON.euro, 'Loonstrook')}
+        ${ctx.profiel === 'thomas' ? navItem('urenkaart', p, ICON.down, 'Urenkaart') : ''}
         ${navItem('instellingen', p, ICON.gear, 'Instellingen')}
       </nav>
       ${ctx.profielNaam ? `<button class="sb-profiel" data-action="wissel-profiel" title="Wissel profiel">
@@ -478,12 +480,57 @@
     const [bg, sf] = sets[id];
     return `<div class="p-bg" style="background:${bg}"></div><div class="p-sf" style="background:${sf}"></div><div class="p-ac" style="background:var(--accent)"></div>`;
   }
+  // ---------- URENKAART (alleen Thomas) ----------
+  function urenkaartPreviewTabel(maand) {
+    const rijen = maand.rijen.map(r => `<tr class="${r.gewerkt ? '' : 'uk-leeg'}">
+      <td class="uk-dow">${r.dow}</td><td class="uk-dag">${r.dag}</td>
+      <td class="uk-vt">${esc(r.vanTot)}</td><td class="uk-uren">${r.gewerkt ? U.fmtUren(r.uren) : ''}</td></tr>`).join('');
+    return `<div class="uk-maand"><div class="uk-maand-kop">${maand.label} ${maand.jaar}</div>
+      <table class="uk-tabel"><thead><tr><th>Dag</th><th>#</th><th>Van/Tot</th><th>Uren</th></tr></thead><tbody>${rijen}</tbody></table>
+      <div class="uk-totalen"><span>Totaal <b>${U.fmtUren(maand.totaalUren)}</b></span><span>Dagen <b>${maand.aantalDagen}</b></span><span>Thuis <b>${maand.dagenThuis}</b></span><span>Toeslag 150%: <b>${maand.toeslagDagen}</b></span></div></div>`;
+  }
+  function urenkaartVeld(id, label, val) {
+    return `<div class="uk-veld"><label for="${id}">${label}</label><input id="${id}" type="text" value="${esc(val)}" autocomplete="off" spellcheck="false"></div>`;
+  }
+  function urenkaartPage(ctx) {
+    if (ctx.profiel !== 'thomas') {
+      return `${paginakopHTML('Urenkaart', ctx.weergave, false)}<div class="card"><div class="sub muted">De urenkaart is alleen voor het profiel Thomas.</div></div>`;
+    }
+    const uk = ctx.state.instellingen.urenkaart || {};
+    const [j, m] = ctx.vandaagIso.split('-').map(Number);
+    const maanden = [EX.vorigeMaand(j, m), { jaar: j, maand: m }];
+    const previews = EX.urenkaartModel(ctx.state, maanden).maanden.map(urenkaartPreviewTabel).join('');
+    return `${paginakopHTML('Urenkaart', ctx.weergave, false)}
+      <div class="uk-wrap">
+        <div class="card">
+          <div class="lab">${ICON.down}Forinchem-urenkaart</div>
+          <div class="sub muted" style="margin:.4rem 0 .8rem">Deze maand en vorige maand, uit je ingevoerde diensten. De knop maakt er een Excel-bestand van.</div>
+          <button class="btn primary" data-action="genereer-urenkaart" style="width:100%;justify-content:center">${ICON.down}Genereer Excel (.xlsx)</button>
+        </div>
+        <div class="card">
+          <div class="lab">${ICON.persoon}Gegevens voor de kaart</div>
+          <div class="sub muted" style="margin:.4rem 0 .8rem">Lokaal bewaard, verschijnt in de kop van de Excel. Laat leeg wat je niet wilt meesturen.</div>
+          <div class="uk-velden">
+            ${urenkaartVeld('uk-naam', 'Naam', uk.naam || '')}
+            ${urenkaartVeld('uk-adres', 'Adres', uk.adres || '')}
+            ${urenkaartVeld('uk-geboortedatum', 'Geboortedatum', uk.geboortedatum || '')}
+            ${urenkaartVeld('uk-bsn', 'BSN', uk.bsn || '')}
+            ${urenkaartVeld('uk-iban', 'IBAN', uk.iban || '')}
+            ${urenkaartVeld('uk-reiskosten', 'Reiskosten', uk.reiskosten || '')}
+            ${urenkaartVeld('uk-contract', 'Contract', uk.contract || '')}
+          </div>
+        </div>
+        <div class="uk-previews">${previews}</div>
+      </div>`;
+  }
+
   // ---------- PAGINA-SWITCH + SHELL ----------
   function pageHTML(ctx) {
     _renderVersie = ctx.versie || 0;
     switch (ctx.pagina) {
       case 'kalender': return kalenderPage(ctx);
       case 'loonstrook': return loonstrookPage(ctx);
+      case 'urenkaart': return urenkaartPage(ctx);
       case 'instellingen': return instellingenPage(ctx);
       default: return overzichtPage(ctx);
     }

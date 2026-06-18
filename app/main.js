@@ -200,6 +200,7 @@
     const a = el.dataset.action;
     // navigatie / globaal
     if (a === 'pagina') { pagina = el.dataset.val; overzichtBewerk = false; renderApp(); return; }
+    if (a === 'genereer-urenkaart') { genereerUrenkaart(); return; }
     if (a === 'wissel-profiel') { openProfielKiezer(false); return; }
     if (a === 'kies-profiel') {
       const id = el.dataset.id;
@@ -307,6 +308,7 @@
     const t = e.target;
     if (t.id === 'set-uurloon') { const v = parseFloat(String(t.value).replace(',', '.')); if (!isNaN(v)) { appState.instellingen.uurloon = v; bewaar(); renderContent(); } return; }
     if (t.id === 'set-reis') { const v = parseFloat(String(t.value).replace(',', '.')); if (!isNaN(v)) { appState.instellingen.reiskostenPerKantoordag = v; bewaar(); renderContent(); } return; }
+    if (t.id && t.id.startsWith('uk-')) { (appState.instellingen.urenkaart = appState.instellingen.urenkaart || {})[t.id.slice(3)] = t.value; bewaar(); return; }
     if (t.dataset && t.dataset.action === 'accent-custom') { appState.instellingen.accent = t.value; bewaar(); pasToeUiterlijk(); renderContent(); return; }
     if (t.dataset && t.dataset.action === 'thema-kleur') {
       const actiefThema = TH.resolve(appState.instellingen.thema, mqDark.matches);
@@ -321,6 +323,15 @@
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
     a.href = url; a.download = 'salaris-backup' + (profiel ? '-' + profiel : '') + '.json'; a.click(); URL.revokeObjectURL(url);
     announce('Back-up geëxporteerd');
+  }
+  function genereerUrenkaart() {
+    const namen = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+    const [j, m] = S.util.isoDate(new Date()).split('-').map(Number);
+    const model = S.excel.urenkaartModel(appState, [S.excel.vorigeMaand(j, m), { jaar: j, maand: m }]);
+    const blob = new Blob([S.excel.bouwXlsx(model)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href = url; a.download = `urenkaart-${namen[m - 1]}-${j}.xlsx`; a.click(); URL.revokeObjectURL(url);
+    announce('Urenkaart-Excel gegenereerd');
   }
   function importData() {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json';
