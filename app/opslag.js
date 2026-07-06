@@ -10,7 +10,7 @@
     return {
       versie: 1, dagen: {},
       instellingen: {
-        uurloon: 17.98, reiskostenPerKantoordag: 21.62,
+        uurloon: 17.98, reiskostenPerKantoordag: 21.20,
         standaardWeergave: 'netto', loonheffingskorting: true,
         thema: 'systeem', accent: '#6C63FF',
         zondagToeslag: false,

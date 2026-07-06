@@ -118,12 +118,9 @@
   }
 
   // ---------- PAGINAKOP ----------
-  function paginakopHTML(titel, weergave, metPil = true, extra = '') {
-    const pil = metPil ? `<div class="seg teal" role="tablist" aria-label="Bruto of netto">
-        <button data-action="weergave" data-val="bruto" aria-selected="${weergave === 'bruto'}">Bruto</button>
-        <button data-action="weergave" data-val="netto" aria-selected="${weergave === 'netto'}">Netto</button>
-      </div>` : '';
-    return `<div class="paginakop"><h2>${titel}</h2><div class="spacer"></div>${extra}${pil}</div>`;
+  // Bruto/netto is één instelling (Instellingen → Data → Standaard weergave), geen per-pagina toggle meer.
+  function paginakopHTML(titel, extra = '') {
+    return `<div class="paginakop"><h2>${titel}</h2><div class="spacer"></div>${extra}</div>`;
   }
 
   // ---------- OVERZICHT ----------
@@ -183,7 +180,7 @@
     const nettoUur = totUrenM > 0 ? t.nettoTot / totUrenM : 0;
     const uurloonBlok = `<div class="uurloon-grid" style="margin-top:.7rem">
         <div class="ul-box"><span class="ul-l">Bruto / uur</span><span class="ul-v">${U.fmtEuro(brutoUur)}</span></div>
-        <div class="ul-box net"><span class="ul-l">Netto / uur</span><span class="ul-v">${U.fmtEuro(nettoUur)}</span></div>
+        ${weergave === 'netto' ? `<div class="ul-box net"><span class="ul-l">Netto / uur</span><span class="ul-v">${U.fmtEuro(nettoUur)}</span></div>` : ''}
       </div>`;
     const nettoRatio = t.brutoTot > 0 ? Math.round(t.nettoTot / t.brutoTot * 100) : 0;
     let lsRows;
@@ -235,7 +232,7 @@
       cards = cfg.filter(wd => wd.zicht).map(wd => `<div class="ov-w ${wd.groot ? 'groot' : ''}">${widgetDefs[wd.id].html}</div>`).join('');
     }
 
-    return `${paginakopHTML('Overzicht', weergave, true, editKnop)}
+    return `${paginakopHTML('Overzicht', editKnop)}
       ${bewerk ? '<div class="ov-hint">Sleep om te ordenen · 2× = dubbele breedte · verberg wat je niet nodig hebt.</div>' : ''}
       <div class="ov-grid${bewerk ? ' bewerk' : ''}" data-rol="ov-grid" data-scroll>${cards}</div>`;
   }
@@ -283,7 +280,7 @@
     const VOLDAG = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
     const dow = VOLDAG.map((d, i) => `<b class="${i >= 5 ? 'we' : ''}" title="${d}"><span class="dow-lg">${d}</span><span class="dow-sm">${d.slice(0, 2)}</span></b>`).join('');
 
-    return `${paginakopHTML('Kalender', weergave, true)}
+    return `${paginakopHTML('Kalender')}
       <div class="kal-wrap">
         <div class="calcard">
           <div class="calhead">
@@ -299,8 +296,8 @@
           <div class="card"><div class="lab">${ICON.maand}Deze maand</div>
             <div class="bd" style="box-shadow:none;border:0;padding:.6rem 0 0;background:transparent">
               <div class="row"><span class="k">Uren</span><span class="v">${U.fmtUren(urenMaand)}</span></div>
-              <div class="row"><span class="k">Bruto</span><span class="v">${U.fmtEuro(M.brutoTot)}</span></div>
-              <div class="row netto"><span class="k">Netto</span><span class="v">${U.fmtEuro(M.netto)}</span></div>
+              ${weergave === 'netto' ? `<div class="row"><span class="k">Bruto</span><span class="v">${U.fmtEuro(M.brutoTot)}</span></div>
+              <div class="row netto"><span class="k">Netto</span><span class="v">${U.fmtEuro(M.netto)}</span></div>` : `<div class="row netto"><span class="k">Bruto + reiskosten</span><span class="v">${U.fmtEuro(M.brutoTot)}</span></div>`}
               <div class="row"><span class="k">Vakantiegeld</span><span class="v">${U.fmtEuro(M.vakantiegeld)}</span></div>
             </div>
           </div>
@@ -374,10 +371,10 @@
     const uurloonCard = `<div class="card"><div class="lab">${ICON.euro}Uurloon</div>
       <div class="uurloon-grid">
         <div class="ul-box"><span class="ul-l">Bruto per uur</span><span class="ul-v">${U.fmtEuro(brutoUur)}</span></div>
-        <div class="ul-box net"><span class="ul-l">Netto per uur <span class="f">(gemiddeld)</span></span><span class="ul-v">${U.fmtEuro(nettoUur)}</span></div>
+        ${netto ? `<div class="ul-box net"><span class="ul-l">Netto per uur <span class="f">(gemiddeld)</span></span><span class="ul-v">${U.fmtEuro(nettoUur)}</span></div>` : ''}
       </div></div>`;
 
-    return `${paginakopHTML('Loonstrook', weergave)}
+    return `${paginakopHTML('Loonstrook')}
       <div class="loon-wrap">
         <div class="loon-main">
           <div class="calhead">
@@ -438,7 +435,7 @@
     const swatches = TH.ACCENTS.map(a => `<button class="sw ${accentEq(a.hex) ? 'on' : ''}" data-action="accent" data-val="${a.hex}" style="background:${a.hex}" aria-label="${a.naam}" title="${a.naam}">${ICON.vink}</button>`).join('')
       + `<label class="sw-custom" title="Eigen kleur">${ICON.pen}<input type="color" value="${i.accent}" data-action="accent-custom" aria-label="Eigen accentkleur"></label>`;
 
-    return `${paginakopHTML('Instellingen', ctx.weergave, false)}
+    return `${paginakopHTML('Instellingen')}
       <div class="set-wrap" data-scroll><div class="set-sections">
         <section class="set-sec wide"><h3 class="set-h">${ICON.persoon}Profiel</h3>
           <div class="set-row"><div class="info"><div class="name">Wie ben je?</div><div class="hint">Elk profiel houdt eigen uren én instellingen bij.</div></div>
@@ -460,7 +457,7 @@
           ${themaKleurenHTML(i)}
         </section>
         <section class="set-sec wide"><h3 class="set-h">${ICON.down}Data</h3>
-          <div class="set-row"><div class="info"><div class="name">Standaard weergave</div><div class="hint">Bruto = puur bruto · Netto = mét loonheffingskorting en inhoudingen.</div></div>
+          <div class="set-row"><div class="info"><div class="name">Standaard weergave</div><div class="hint">Bruto = salaris + onbelaste reiskosten · Netto = mét alle in-/afhoudingen + onbelaste reiskosten.</div></div>
             <div class="seg" role="tablist"><button data-action="set-weergave" data-val="bruto" aria-selected="${w === 'bruto'}">Bruto</button><button data-action="set-weergave" data-val="netto" aria-selected="${w === 'netto'}">Netto</button></div></div>
           <div class="actions" style="margin-top:.5rem"><button class="btn" data-action="export" style="flex:1">${ICON.down}Exporteren (bestand)</button><button class="btn" data-action="import" style="flex:1">${ICON.up2}Importeren (bestand)</button></div>
           ${overzettenHTML()}
@@ -494,13 +491,13 @@
   }
   function urenkaartPage(ctx) {
     if (ctx.profiel !== 'thomas') {
-      return `${paginakopHTML('Urenkaart', ctx.weergave, false)}<div class="card"><div class="sub muted">De urenkaart is alleen voor het profiel Thomas.</div></div>`;
+      return `${paginakopHTML('Urenkaart')}<div class="card"><div class="sub muted">De urenkaart is alleen voor het profiel Thomas.</div></div>`;
     }
     const uk = ctx.state.instellingen.urenkaart || {};
     const [j, m] = ctx.vandaagIso.split('-').map(Number);
     const maanden = [EX.vorigeMaand(j, m), { jaar: j, maand: m }];
     const previews = EX.urenkaartModel(ctx.state, maanden).maanden.map(urenkaartPreviewTabel).join('');
-    return `${paginakopHTML('Urenkaart', ctx.weergave, false)}
+    return `${paginakopHTML('Urenkaart')}
       <div class="uk-wrap">
         <div class="card">
           <div class="lab">${ICON.down}Forinchem-urenkaart</div>
@@ -559,7 +556,7 @@
 
   function breakdownHTML(b, ctx) {
     _renderVersie = ctx.versie || 0; // ook bereikbaar via patchDag (buiten pageHTML); houd cache-sleutel actueel
-    const { state } = ctx;
+    const { state, weergave } = ctx;
     const inst = state.instellingen;
     const dt = new Date(b.iso + 'T00:00:00');
     const dd = REK.dagBruto({ datum: b.iso, van: b.van, tot: b.tot, extra: b.extra, locatie: b.locatie, zondagToeslag: b.zondagToeslag }, inst);
@@ -568,11 +565,15 @@
       <div class="row"><span class="k">Basisloon <span class="f">${U.fmtUren(dd.betaaldeUren)} × ${U.fmtEuro(inst.uurloon)}</span></span><span class="v">${U.fmtEuro(dd.basisloon)}</span></div>`;
     if (dd.toeslag > 0) bd += `<div class="row toeslag"><span class="k">Toeslag</span><span class="v">${U.fmtEuro(dd.toeslag)}</span></div>`;
     if (dd.reiskosten > 0) bd += `<div class="row"><span class="k">Reiskosten <span class="f">(kantoor, onbelast)</span></span><span class="v">${U.fmtEuro(dd.reiskosten)}</span></div>`;
-    bd += `<div class="rule"></div><div class="row bruto"><span class="k">Bruto totaal</span><span class="v">${U.fmtEuro(brutoDag)}</span></div>`;
-    const { map } = maandResultaat(state, dt.getFullYear(), dt.getMonth() + 1);
-    const pd = map[b.iso]; const nettoDag = pd ? pd.netto : brutoDag; const inhoud = brutoDag - nettoDag;
-    bd += `<div class="row inhoud"><span class="k">Inhoudingen <span class="f">(belasting, pensioen e.d.)</span></span><span class="v">−${U.fmtEuro(inhoud)}</span></div>
-      <div class="rule"></div><div class="row netto"><span class="k">Netto deze dag</span><span class="v">${U.fmtEuro(nettoDag)}</span></div>`;
+    if (weergave === 'netto') {
+      bd += `<div class="rule"></div><div class="row bruto"><span class="k">Bruto totaal</span><span class="v">${U.fmtEuro(brutoDag)}</span></div>`;
+      const { map } = maandResultaat(state, dt.getFullYear(), dt.getMonth() + 1);
+      const pd = map[b.iso]; const nettoDag = pd ? pd.netto : brutoDag; const inhoud = brutoDag - nettoDag;
+      bd += `<div class="row inhoud"><span class="k">Inhoudingen <span class="f">(belasting, pensioen e.d.)</span></span><span class="v">−${U.fmtEuro(inhoud)}</span></div>
+        <div class="rule"></div><div class="row netto"><span class="k">Netto deze dag</span><span class="v">${U.fmtEuro(nettoDag)}</span></div>`;
+    } else {
+      bd += `<div class="rule"></div><div class="row netto"><span class="k">Bruto + reiskosten</span><span class="v">${U.fmtEuro(brutoDag)}</span></div>`;
+    }
     return bd;
   }
 

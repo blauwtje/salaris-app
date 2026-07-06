@@ -5,7 +5,6 @@
   const SY = S.sync;
   let profiel = S.opslag.actiefProfiel(store);
   let appState = profiel ? S.opslag.laadProfiel(store, profiel) : S.opslag.defaultState();
-  let weergave = appState.instellingen.standaardWeergave || 'netto';
   const today = new Date();
   let zicht = { jaar: today.getFullYear(), maand: today.getMonth() + 1 };
   let pagina = 'overzicht';
@@ -25,7 +24,7 @@
 
   const nuMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
   const profielNaam = () => { const p = S.opslag.PROFIELEN.find(x => x.id === profiel); return p ? p.naam : ''; };
-  const ctx = () => ({ state: appState, weergave, zicht, pagina, vandaagIso: S.util.isoDate(new Date()), nuMin: nuMin(), highlightIso, overzichtBewerk, versie, profiel, profielen: S.opslag.PROFIELEN, profielNaam: profielNaam(), syncBeschikbaar: SY.configured(), syncTekst: syncTekstVan(syncStaat) });
+  const ctx = () => ({ state: appState, weergave: appState.instellingen.standaardWeergave || 'netto', zicht, pagina, vandaagIso: S.util.isoDate(new Date()), nuMin: nuMin(), highlightIso, overzichtBewerk, versie, profiel, profielen: S.opslag.PROFIELEN, profielNaam: profielNaam(), syncBeschikbaar: SY.configured(), syncTekst: syncTekstVan(syncStaat) });
   const bewaar = () => {
     versie++;
     if (!profiel) return;
@@ -75,7 +74,7 @@
     // Nooit eerder gesynct op dit apparaat: cloud wint alleen als lokaal leeg is (beschermt bestaande data).
     const adopt = lokaal ? (new Date(res.updatedAt) > new Date(lokaal)) : !profielHeeftData(appState);
     if (adopt) {
-      appState = res.state; weergave = appState.instellingen.standaardWeergave || 'netto';
+      appState = res.state;
       zetTsLokaal(id, res.updatedAt); S.opslag.bewaarProfiel(store, id, appState);
       versie++; pasToeUiterlijk(); renderApp();
     } else {
@@ -207,7 +206,6 @@
       if (id && id !== profiel) {
         profiel = id; S.opslag.zetActief(store, id);
         appState = S.opslag.laadProfiel(store, id);
-        weergave = appState.instellingen.standaardWeergave || 'netto';
         versie++; // memo in ui.js cachet op versie; ander profiel = andere data
       }
       profielKiezerVerplicht = false;
@@ -215,7 +213,6 @@
       pasToeUiterlijk(); renderApp(); naProfiel();
       return;
     }
-    if (a === 'weergave') { weergave = el.dataset.val; if (bewerk) patchDag(); else renderContent(); return; }
     if (a === 'ov-bewerk') { overzichtBewerk = !overzichtBewerk; renderContent(); return; }
     if (a === 'ov-size') { widgetCfg(el.dataset.id).groot = !widgetCfg(el.dataset.id).groot; bewaar(); renderContent(); return; }
     if (a === 'ov-hide') { widgetCfg(el.dataset.id).zicht = false; bewaar(); renderContent(); return; }
@@ -237,7 +234,7 @@
       if (appState.instellingen.themaOverrides[actiefThema]) { delete appState.instellingen.themaOverrides[actiefThema][el.dataset.token]; }
       bewaar(); pasToeUiterlijk(); location.reload(); return;
     }
-    if (a === 'set-weergave') { appState.instellingen.standaardWeergave = el.dataset.val; weergave = el.dataset.val; bewaar(); renderContent(); return; }
+    if (a === 'set-weergave') { appState.instellingen.standaardWeergave = el.dataset.val; bewaar(); renderContent(); return; }
     if (a === 'set-zondagtoeslag') { appState.instellingen.zondagToeslag = !appState.instellingen.zondagToeslag; bewaar(); renderContent(); return; }
     if (a === 'export') { exportData(); return; }
     if (a === 'import') { importData(); return; }
@@ -260,7 +257,7 @@
       try {
         const nieuw = S.opslag.decodeer(ta.value);
         if (!confirm('Huidige gegevens vervangen door de geplakte code?')) return;
-        appState = nieuw; weergave = appState.instellingen.standaardWeergave || 'netto';
+        appState = nieuw;
         bewaar(); pasToeUiterlijk(); renderApp(); announce('Gegevens overgezet');
       } catch (e) { announce('Ongeldige code'); }
       return;
@@ -337,7 +334,7 @@
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json';
     inp.onchange = () => {
       const f = inp.files[0]; if (!f) return; const r = new FileReader();
-      r.onload = () => { try { appState = S.opslag.importeer(r.result); weergave = appState.instellingen.standaardWeergave || 'netto'; bewaar(); pasToeUiterlijk(); renderApp(); announce('Back-up geïmporteerd'); } catch { announce('Ongeldig back-upbestand'); } };
+      r.onload = () => { try { appState = S.opslag.importeer(r.result); bewaar(); pasToeUiterlijk(); renderApp(); announce('Back-up geïmporteerd'); } catch { announce('Ongeldig back-upbestand'); } };
       r.readAsText(f);
     };
     inp.click();

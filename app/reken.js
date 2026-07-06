@@ -5,11 +5,12 @@
 })(typeof self !== 'undefined' ? self : this, function (uren, belasting) {
   const r2 = n => Math.round(n * 100) / 100;
 
-  // Werknemerspremies (correct 2026-model). Franchise zo gekozen dat pensioen op de
-  // referentie-strook ≈ €32,98 uitkomt; premies/BT/reiskosten zijn exact, loonheffing
-  // via de officiële 2026-cijfers. (De oorspronkelijke strooktekst was OCR-verminkt en
-  // sloot niet op de cent; de gebruiker koos voor dit correcte model.)
-  const PREMIE = { pensioenPct: 0.0948, pensioenFranchiseJaar: 17563, paww: 0.001, wga: 0.0064 };
+  // Werknemerspremies (2026-model, geijkt op de payslip van juni 2026).
+  // De pensioenfranchise schaalt naar rato van de betaalde uren (i.p.v. een vaste
+  // maandfranchise) — nodig omdat het uurtal per maand wisselt bij een oproepkracht:
+  // €2265,48 bruto over 126u → franchisegrondslag €1018,53 → pensioengrondslag
+  // €1246,95 → pensioen €118,21, exact zoals op de strook.
+  const PREMIE = { pensioenPct: 0.0948, pensioenFranchisePerUur: 1018.53 / 126, paww: 0.001, wga: 0.0064 };
 
   const ZONDAG_TOESLAG = 0.5;
   const isZondag = datum => new Date(datum + 'T00:00:00').getDay() === 0;
@@ -30,12 +31,13 @@
     return { datum: dag.datum, klokuren: klok, betaaldeUren: betaald, basisloon, toeslag, reiskosten, brutoBelastbaar: basisloon, btLoon: toeslag };
   }
 
-  function rekenTotalen({ tabelLoon, btLoon, pensioengevend, reiskostenTot }, inst) {
-    const franchiseMaand = PREMIE.pensioenFranchiseJaar / 12;
-    const pensioen = r2(Math.max(0, pensioengevend - franchiseMaand) * PREMIE.pensioenPct);
+  function rekenTotalen({ tabelLoon, btLoon, pensioengevend, pensioengevendUren, reiskostenTot }, inst) {
+    const franchise = PREMIE.pensioenFranchisePerUur * (pensioengevendUren || 0);
+    const pensioen = r2(Math.max(0, pensioengevend - franchise) * PREMIE.pensioenPct);
     const svBase = tabelLoon + btLoon;
     const paww = r2(svBase * PREMIE.paww);
-    const wga = r2(svBase * PREMIE.wga);
+    const svLoon = svBase - pensioen - paww; // grondslag voor de werknemersverzekering (WGA)
+    const wga = r2(svLoon * PREMIE.wga);
     const tabelGrondslag = tabelLoon - pensioen - paww;
     const loonheffingTabel = r2(belasting.tabelLoonheffingMaand(tabelGrondslag, true));
     const loonheffingBT = r2(belasting.bijzonderTarief(btLoon));
@@ -56,8 +58,9 @@
     const btDagen = per.reduce((s, d) => s + d.btLoon, 0);
     const btLoon = btDagen + (opties.vakantiegeld || 0);
     const pensioengevend = per.reduce((s, d) => s + d.basisloon + d.toeslag, 0);
+    const pensioengevendUren = per.reduce((s, d) => s + d.betaaldeUren, 0);
     const reiskostenTot = per.reduce((s, d) => s + d.reiskosten, 0);
-    const tot = rekenTotalen({ tabelLoon, btLoon, pensioengevend, reiskostenTot }, inst);
+    const tot = rekenTotalen({ tabelLoon, btLoon, pensioengevend, pensioengevendUren, reiskostenTot }, inst);
     const denom = per.reduce((s, d) => s + d.brutoBelastbaar + d.btLoon, 0) || 1;
     per.forEach(d => {
       const aandeel = (d.brutoBelastbaar + d.btLoon) / denom;
