@@ -54,11 +54,15 @@
 
   function maandReken(dagen, inst, opties = {}) {
     const per = dagen.map(d => dagBruto(d, inst));
-    const tabelLoon = per.reduce((s, d) => s + d.brutoBelastbaar, 0);
+    // Correctie-uren: niet aan een dag gekoppeld (bijv. een nabetaling van een vorige maand).
+    // Belast als gewoon extra tabelloon, tegen het normale tabeltarief — geen bijzonder tarief.
+    const extraUren = opties.extraUren || 0;
+    const extraLoon = r2(extraUren * inst.uurloon);
+    const tabelLoon = Math.max(0, per.reduce((s, d) => s + d.brutoBelastbaar, 0) + extraLoon);
     const btDagen = per.reduce((s, d) => s + d.btLoon, 0);
     const btLoon = btDagen + (opties.vakantiegeld || 0);
-    const pensioengevend = per.reduce((s, d) => s + d.basisloon + d.toeslag, 0);
-    const pensioengevendUren = per.reduce((s, d) => s + d.betaaldeUren, 0);
+    const pensioengevend = Math.max(0, per.reduce((s, d) => s + d.basisloon + d.toeslag, 0) + extraLoon);
+    const pensioengevendUren = Math.max(0, per.reduce((s, d) => s + d.betaaldeUren, 0) + extraUren);
     const reiskostenTot = per.reduce((s, d) => s + d.reiskosten, 0);
     const tot = rekenTotalen({ tabelLoon, btLoon, pensioengevend, pensioengevendUren, reiskostenTot }, inst);
     const denom = per.reduce((s, d) => s + d.brutoBelastbaar + d.btLoon, 0) || 1;

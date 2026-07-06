@@ -53,10 +53,15 @@
   const eK = n => '€' + Math.round(n).toLocaleString('nl-NL');
   function resterend(min) { const h = Math.floor(min / 60), m = min % 60; return (h ? h + 'u ' : '') + m + 'm'; }
   function maandagVan(d) { const x = new Date(d); const off = (x.getDay() + 6) % 7; x.setDate(x.getDate() - off); return x; }
-  function dagenVanMaand(state, jaar, maand) {
-    const pre = `${jaar}-${String(maand).padStart(2, '0')}`;
+  const pad2 = n => String(n).padStart(2, '0');
+  const maandSleutel = (jaar, maand) => `${jaar}-${pad2(maand)}`;
+  // Een dag hoort standaard bij zijn eigen kalendermaand, tenzij `loonmaand` een andere
+  // maand aanwijst (bijv. een dag die fiscaal bij de volgende salarisronde hoort).
+  function effectieveMaand(iso, dag) { return (dag && dag.loonmaand) || iso.slice(0, 7); }
+  function dagenVoorLoonmaand(state, jaar, maand) {
+    const sleutel = maandSleutel(jaar, maand);
     return Object.entries(state.dagen)
-      .filter(([iso]) => iso.startsWith(pre) && !FD.isFeestdag(iso))
+      .filter(([iso, d]) => effectieveMaand(iso, d) === sleutel && !FD.isFeestdag(iso))
       .map(([iso, d]) => ({ ...d, datum: iso }));
   }
   // Memo: één overzicht-render vraagt dezelfde maand ~9x op. Cache per jaar-maand-versie;
@@ -67,15 +72,18 @@
     const sleutel = `${jaar}-${maand}-${_renderVersie}`;
     const cached = _maandCache.get(sleutel);
     if (cached) return cached;
-    const res = REK.maandReken(dagenVanMaand(state, jaar, maand), state.instellingen);
+    const maandKey = maandSleutel(jaar, maand);
+    const correcties = (state.correcties && state.correcties[maandKey]) || [];
+    const extraUren = correcties.reduce((s, c) => s + (c.uren || 0), 0);
+    const res = REK.maandReken(dagenVoorLoonmaand(state, jaar, maand), state.instellingen, { extraUren });
     const map = {}; res.perDag.forEach(d => { map[d.datum] = d; });
-    const val = { res, map };
+    const val = { res, map, correcties };
     if (_maandCache.size > 24) _maandCache.clear();
     _maandCache.set(sleutel, val);
     return val;
   }
   function bedragVoorDag(state, iso, weergave) {
-    const [j, m] = iso.split('-').map(Number);
+    const [j, m] = effectieveMaand(iso, state.dagen[iso]).split('-').map(Number);
     const { map } = maandResultaat(state, j, m);
     const d = map[iso]; if (!d) return 0;
     return weergave === 'bruto' ? d.bruto : d.netto;
@@ -129,11 +137,22 @@
     const vandaag = new Date(vandaagIso + 'T00:00:00');
     const jaar = vandaag.getFullYear(), maand = vandaag.getMonth() + 1;
     const M = maandTotalen(state, jaar, maand);
-    const urenMaand = ST.urenInMaand(state.dagen, jaar, maand);
+    // Fiscaal/loonmaand-consistent urental (i.p.v. puur fysiek): een dag die naar een andere
+    // loonmaand is herverdeeld, telt hier niet meer mee — anders wijken uren en het ernaast
+    // getoonde bruto-cijfer van elkaar af.
+    const urenMaand = M.res.perDag.reduce((s, d) => s + d.betaaldeUren, 0);
     const maMaandag = maandagVan(vandaag);
     const urenWeek = ST.urenInWeek(state.dagen, U.isoDate(maMaandag));
-    let weekBedrag = 0;
-    for (let i = 0; i < 7; i++) { const d = new Date(maMaandag); d.setDate(maMaandag.getDate() + i); const iso = U.isoDate(d); if (state.dagen[iso]) weekBedrag += bedragVoorDag(state, iso, weergave); }
+    let weekBedrag = 0, weekReis = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(maMaandag); d.setDate(maMaandag.getDate() + i); const iso = U.isoDate(d);
+      if (state.dagen[iso]) {
+        weekBedrag += bedragVoorDag(state, iso, weergave);
+        const [ejr, emd] = effectieveMaand(iso, state.dagen[iso]).split('-').map(Number);
+        const pd = maandResultaat(state, ejr, emd).map[iso];
+        if (pd) weekReis += pd.reiskosten;
+      }
+    }
     const maandBedrag = weergave === 'bruto' ? M.brutoTot : M.netto;
 
     const volg = ST.volgendeWerkdag(state.dagen, vandaagIso);
@@ -200,8 +219,8 @@
 
     const bewerk = !!ctx.overzichtBewerk;
     const widgetDefs = {
-      week: { label: 'Deze week', html: `<div class="card clickable" data-action="goto-dag" data-iso="${vandaagIso}"><div class="lab">${ICON.week}Deze week</div><div class="big">${U.fmtUren(urenWeek).replace('u', '')}<small> u</small></div><div class="sub">${U.fmtEuro(weekBedrag)} ${weergave}</div></div>` },
-      maand: { label: 'Deze maand (uren)', html: `<div class="card clickable" data-action="goto-dag" data-iso="${vandaagIso}"><div class="lab">${ICON.maand}Deze maand</div><div class="big">${U.fmtUren(urenMaand).replace('u', '')}<small> u</small></div><div class="sub">${U.fmtEuro(maandBedrag)} ${weergave}</div></div>` },
+      week: { label: 'Deze week', html: `<div class="card clickable" data-action="goto-dag" data-iso="${vandaagIso}"><div class="lab">${ICON.week}Deze week</div><div class="big">${U.fmtUren(urenWeek).replace('u', '')}<small> u</small></div><div class="sub">${U.fmtEuro(weekBedrag)} ${weergave}${weekReis > 0 ? ` · ${U.fmtEuro(weekReis)} reiskosten` : ''}</div></div>` },
+      maand: { label: 'Deze maand (uren)', html: `<div class="card clickable" data-action="goto-dag" data-iso="${vandaagIso}"><div class="lab">${ICON.maand}Deze maand</div><div class="big">${U.fmtUren(urenMaand).replace('u', '')}<small> u</small></div><div class="sub">${U.fmtEuro(maandBedrag)} ${weergave}${M.reiskosten > 0 ? ` · ${U.fmtEuro(M.reiskosten)} reiskosten` : ''}</div></div>` },
       vakantiegeld: { label: 'Vakantiegeld', html: `<div class="card clickable" data-action="pagina" data-val="loonstrook"><div class="lab">${ICON.euro}Vakantiegeld</div><div class="big">${U.fmtEuro(M.vakantiegeld)}</div><div class="sub muted">deze maand opgebouwd</div></div>` },
       volgende: { label: 'Volgende werkdag', html: volg ? `<div class="card clickable" data-action="goto-dag-flash" data-iso="${volg}"><div class="lab">${ICON.pijl}Volgende werkdag</div><div class="big" style="font-size:1.2rem;margin-top:.5rem">${volgBig}</div><div class="sub">${volgSub}</div></div>` : `<div class="card"><div class="lab">${ICON.pijl}Volgende werkdag</div><div class="big" style="font-size:1.2rem;margin-top:.5rem">${volgBig}</div><div class="sub">${volgSub}</div></div>` },
       voortgang: { label: 'Werkdag vandaag', html: progCard },
@@ -243,12 +262,17 @@
     if (c.uitMaand) return `<div class="c out"><div class="c-top"><span class="num">${c.dagNummer}</span></div></div>`;
     if (c.geblokkeerd) return `<div class="c holi" data-action="holi" data-naam="${esc(c.feestdag)}"><div class="c-top"><span class="num">${c.dagNummer}</span>${ICON.slot.replace('<svg', '<svg class="lock"')}</div><div class="holi-naam">${esc(c.feestdag)}</div></div>`;
 
+    // Fysieke aanwezigheid (heb je hier gewerkt) staat los van fiscale aanwezigheid in déze
+    // loonmaand (pd) — een dag kan naar een andere loonmaand herverdeeld zijn (dagDetail →
+    // "Telt mee bij de loonmaand"). Uren/locatie komen dan uit `c` (maandModel rekent die altijd
+    // fysiek per dag door, ongeacht loonmaand); het eurobedrag alleen als de dag hier ook fiscaal bij hoort.
+    const dagData = state.dagen[c.iso];
+    const heeftWerk = !!dagData;
     const pd = map[c.iso];
-    const heeftWerk = !!pd;
 
-    const heeftNotitie = !!(state.dagen[c.iso] && state.dagen[c.iso].notitie);
+    const heeftNotitie = !!(dagData && dagData.notitie);
     const marks = [];
-    if (heeftWerk) marks.push(`<span class="mk loc">${state.dagen[c.iso].locatie === 'thuis' ? 'T' : 'K'}</span>`);
+    if (heeftWerk) marks.push(`<span class="mk loc">${dagData.locatie === 'thuis' ? 'T' : 'K'}</span>`);
     if (c.hrDeadline) marks.push('<span class="mk hr" title="Uren indienen"></span>');
     if (c.salarisdag) marks.push('<span class="mk pay">€</span>');
     if (c.toeslag > 0) marks.push(`<span class="mk toesl" title="Toeslag +${Math.round(c.toeslag * 100)}%">+${Math.round(c.toeslag * 100)}%</span>`);
@@ -257,7 +281,13 @@
     const specialLabel = c.hrDeadline ? `<div class="c-special hr">Uren indienen</div>` : c.salarisdag ? `<div class="c-special pay">Salaris</div>` : '';
 
     let werk = '';
-    if (pd) { const bedrag = weergave === 'bruto' ? pd.bruto : pd.netto; werk = `<div class="c-work"><span class="u">${U.fmtUren(pd.betaaldeUren)}</span><span class="e">${eK(bedrag)}</span></div>`; }
+    if (heeftWerk && pd) {
+      const bedrag = weergave === 'bruto' ? pd.bruto : pd.netto;
+      werk = `<div class="c-work"><span class="u">${U.fmtUren(c.betaaldeUren)}</span><span class="e">${eK(bedrag)}</span></div>`;
+    } else if (heeftWerk && dagData.loonmaand) {
+      const [, m] = dagData.loonmaand.split('-').map(Number);
+      werk = `<div class="c-work"><span class="u">${U.fmtUren(c.betaaldeUren)}</span><span class="verhuisd">→ ${MAAND[m - 1]}</span></div>`;
+    }
 
     const cls = ['c']; if (c.vandaag) cls.push('today'); if (c.zondag) cls.push('weekend'); if (c.toeslag > 0) cls.push('toeslagdag'); if (heeftWerk) cls.push('worked', 'has-content'); if (heeftNotitie) cls.push('has-note'); if (ctx.highlightIso === c.iso) cls.push('flash');
     const draggable = heeftWerk ? ' draggable="true"' : '';
@@ -275,7 +305,7 @@
     const cellHTML = cellen.map((c, i) => dagCelHTML(c, ctx, map, i)).join('');
 
     const M = maandTotalen(state, zicht.jaar, zicht.maand);
-    const urenMaand = ST.urenInMaand(state.dagen, zicht.jaar, zicht.maand);
+    const urenMaand = M.res.perDag.reduce((s, d) => s + d.betaaldeUren, 0);
 
     const VOLDAG = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
     const dow = VOLDAG.map((d, i) => `<b class="${i >= 5 ? 'we' : ''}" title="${d}"><span class="dow-lg">${d}</span><span class="dow-sm">${d.slice(0, 2)}</span></b>`).join('');
@@ -296,8 +326,9 @@
           <div class="card"><div class="lab">${ICON.maand}Deze maand</div>
             <div class="bd" style="box-shadow:none;border:0;padding:.6rem 0 0;background:transparent">
               <div class="row"><span class="k">Uren</span><span class="v">${U.fmtUren(urenMaand)}</span></div>
-              ${weergave === 'netto' ? `<div class="row"><span class="k">Bruto</span><span class="v">${U.fmtEuro(M.brutoTot)}</span></div>
-              <div class="row netto"><span class="k">Netto</span><span class="v">${U.fmtEuro(M.netto)}</span></div>` : `<div class="row netto"><span class="k">Bruto + reiskosten</span><span class="v">${U.fmtEuro(M.brutoTot)}</span></div>`}
+              <div class="row"><span class="k">Bruto</span><span class="v">${U.fmtEuro(M.svBase)}</span></div>
+              <div class="row"><span class="k">Reiskosten <span class="f">(onbelast)</span></span><span class="v">${U.fmtEuro(M.reiskosten)}</span></div>
+              ${weergave === 'netto' ? `<div class="row netto"><span class="k">Netto</span><span class="v">${U.fmtEuro(M.netto)}</span></div>` : `<div class="row netto"><span class="k">Bruto + reiskosten</span><span class="v">${U.fmtEuro(M.brutoTot)}</span></div>`}
               <div class="row"><span class="k">Vakantiegeld</span><span class="v">${U.fmtEuro(M.vakantiegeld)}</span></div>
             </div>
           </div>
@@ -318,17 +349,21 @@
   // ---------- LOONSTROOK ----------
   function loonstrookPage(ctx) {
     const { state, weergave, zicht } = ctx;
-    const { res } = maandResultaat(state, zicht.jaar, zicht.maand);
+    const { res, correcties } = maandResultaat(state, zicht.jaar, zicht.maand);
     const t = res.totalen;
     const salaris = res.perDag.reduce((s, d) => s + d.basisloon, 0);
     const toeslag = res.perDag.reduce((s, d) => s + d.toeslag, 0);
+    const extraUren = correcties.reduce((s, c) => s + (c.uren || 0), 0);
+    const extraLoon = extraUren * state.instellingen.uurloon;
     const svBase = t.brutoTot - t.reiskostenTot;
     const netto = weergave === 'netto';
     const pct = n => svBase > 0 && n > 0 ? `<span class="pct-badge">${(n / svBase * 100).toFixed(1)}%</span>` : '';
     const nettoRatio = t.brutoTot > 0 ? Math.round(t.nettoTot / t.brutoTot * 100) : 0;
+    const zichtKey = maandSleutel(zicht.jaar, zicht.maand);
 
     let rows = `<div class="row"><span class="k">Salaris</span><span class="v">${U.fmtEuro(salaris)}</span></div>`;
     if (toeslag > 0) rows += `<div class="row toeslag"><span class="k">Toeslag</span><span class="v">${U.fmtEuro(toeslag)}</span></div>`;
+    if (extraUren !== 0) rows += `<div class="row"><span class="k">Correctie <span class="f">(${extraUren > 0 ? '+' : '−'}${U.fmtUren(Math.abs(extraUren))})</span></span><span class="v">${U.fmtEuro(extraLoon)}</span></div>`;
     rows += `<div class="rule"></div><div class="row bruto"><span class="k">Bruto totaal</span><span class="v">${U.fmtEuro(svBase)}</span></div>`;
     if (netto) {
       rows += `<div class="row inhoud sub-i"><span class="k">Pensioen${pct(t.pensioen)}</span><span class="v">−${U.fmtEuro(t.pensioen)}</span></div>
@@ -343,7 +378,7 @@
       rows += `<div class="netto-ratio-wrap"><div class="netto-ratio-meta"><span>Netto verhouding</span><b>${nettoRatio}%</b></div><div class="netto-bar-bg"><div class="netto-bar-fg" style="width:${nettoRatio}%"></div></div><div class="netto-ratio-meta" style="margin-top:.3rem;margin-bottom:0"><span>${U.fmtEuro(t.nettoTot)} van ${U.fmtEuro(t.brutoTot)} bruto</span></div></div>`;
     } else rows += `<div class="rule"></div><div class="row netto"><span class="k">Bruto + reiskosten</span><span class="v">${U.fmtEuro(t.brutoTot)}</span></div>`;
 
-    const dagRows = res.perDag.map(d => {
+    const dagRows = res.perDag.slice().sort((a, b) => a.datum.localeCompare(b.datum)).map(d => {
       const dt = new Date(d.datum + 'T00:00:00');
       const ds = state.dagen[d.datum] || {};
       const bedrag = netto ? d.netto : d.bruto;
@@ -352,8 +387,9 @@
       const tijden = allShifts.filter(s => s.van && s.tot).map(s => `${s.van}–${s.tot}`).join(', ');
       const locTekst = ds.locatie === 'thuis' ? 'Thuis' : 'Kantoor';
       const fr = REK.toeslagFractie({ datum: d.datum, zondagToeslag: ds.zondagToeslag != null ? ds.zondagToeslag : undefined }, state.instellingen);
+      const vanAndereMaand = d.datum.slice(0, 7) !== zichtKey;
       return `<div class="dag-row">
-        <span class="dr-dt">${U.dagNaam(dt)}, ${dt.getDate()} ${MAAND[dt.getMonth()]}${fr > 0 ? ` <span class="dr-tsl">+${Math.round(fr * 100)}%</span>` : ''}</span>
+        <span class="dr-dt">${U.dagNaam(dt)}, ${dt.getDate()} ${MAAND[dt.getMonth()]}${fr > 0 ? ` <span class="dr-tsl">+${Math.round(fr * 100)}%</span>` : ''}${vanAndereMaand ? ` <span class="badge-muted">van ${MAAND[dt.getMonth()]}</span>` : ''}</span>
         <span class="dr-tijd">${tijden}</span>
         <span class="dr-loc-t">${locTekst}</span>
         <span class="dr-uren">${U.fmtUren(d.betaaldeUren)}</span>
@@ -364,6 +400,18 @@
       <div class="lab">${ICON.week}Gewerkte dagen · ${res.perDag.length} dag${res.perDag.length !== 1 ? 'en' : ''}</div>
       <div class="dag-list">${dagRows}</div>
     </div>` : `<div class="card"><div class="lab">${ICON.week}Gewerkte dagen</div><div class="sub muted" style="margin-top:.6rem">Nog geen gewerkte dagen deze maand.</div></div>`;
+
+    const correctieRows = correcties.map(c => {
+      const bedrag = (c.uren || 0) * state.instellingen.uurloon;
+      return `<div class="set-row"><div class="info"><div class="name">${esc(c.notitie || 'Correctie')}</div>
+        <div class="hint">${c.uren > 0 ? '+' : ''}${U.fmtUren(c.uren)} · ${U.fmtEuro(bedrag)}</div></div>
+        <button class="btn-icon" data-action="correctie-del" data-id="${c.id}" aria-label="Verwijder correctie">${ICON.kruis}</button></div>`;
+    }).join('');
+    const correctieCard = `<div class="card">
+      <div class="lab">${ICON.euro}Correcties${correcties.length ? ` · ${correcties.length}` : ''}</div>
+      ${correcties.length ? correctieRows : `<div class="sub muted" style="margin:.4rem 0 .6rem">Nog geen correcties deze maand.</div>`}
+      <button class="btn ghost" data-action="correctie-nieuw" style="width:100%;margin-top:.6rem;justify-content:center">${ICON.plus}Correctie toevoegen</button>
+    </div>`;
 
     const totUren = res.perDag.reduce((s, d) => s + d.betaaldeUren, 0);
     const brutoUur = state.instellingen.uurloon;
@@ -386,6 +434,7 @@
           <div class="card"><div class="bd" style="box-shadow:none;border:0;background:transparent;padding:0">${rows}</div>
             <div class="foot" style="margin-top:1rem">${ICON.slot}Vakantiegeld opgebouwd deze maand: ${U.fmtEuro(t.vakantiegeldReservering)} (in mei uitbetaald).</div>
           </div>
+          ${correctieCard}
         </div>
         <div>${uurloonCard}${dagListCard}</div>
       </div>`;
@@ -558,7 +607,6 @@
     _renderVersie = ctx.versie || 0; // ook bereikbaar via patchDag (buiten pageHTML); houd cache-sleutel actueel
     const { state, weergave } = ctx;
     const inst = state.instellingen;
-    const dt = new Date(b.iso + 'T00:00:00');
     const dd = REK.dagBruto({ datum: b.iso, van: b.van, tot: b.tot, extra: b.extra, locatie: b.locatie, zondagToeslag: b.zondagToeslag }, inst);
     const brutoDag = dd.basisloon + dd.toeslag + dd.reiskosten;
     let bd = `<div class="row"><span class="k">Gewerkt</span><span class="v" style="color:var(--muted);font-weight:500">${U.fmtUren(dd.klokuren)} → <b style="color:var(--text)">${U.fmtUren(dd.betaaldeUren)} betaald</b></span></div>
@@ -567,7 +615,8 @@
     if (dd.reiskosten > 0) bd += `<div class="row"><span class="k">Reiskosten <span class="f">(kantoor, onbelast)</span></span><span class="v">${U.fmtEuro(dd.reiskosten)}</span></div>`;
     if (weergave === 'netto') {
       bd += `<div class="rule"></div><div class="row bruto"><span class="k">Bruto totaal</span><span class="v">${U.fmtEuro(brutoDag)}</span></div>`;
-      const { map } = maandResultaat(state, dt.getFullYear(), dt.getMonth() + 1);
+      const [ejr, emd] = effectieveMaand(b.iso, b).split('-').map(Number);
+      const { map } = maandResultaat(state, ejr, emd);
       const pd = map[b.iso]; const nettoDag = pd ? pd.netto : brutoDag; const inhoud = brutoDag - nettoDag;
       bd += `<div class="row inhoud"><span class="k">Inhoudingen <span class="f">(belasting, pensioen e.d.)</span></span><span class="v">−${U.fmtEuro(inhoud)}</span></div>
         <div class="rule"></div><div class="row netto"><span class="k">Netto deze dag</span><span class="v">${U.fmtEuro(nettoDag)}</span></div>`;
@@ -633,6 +682,44 @@
       </div></div>`;
   }
 
+  // Een dag hoort standaard bij zijn eigen kalendermaand; alleen bij een payroll-cutoff kan het
+  // nodig zijn 'm bij de vorige/volgende loonmaand te laten meetellen (zie effectieveMaand hierboven).
+  function loonmaandSectieHTML(b) {
+    const dt = new Date(b.iso + 'T00:00:00');
+    const vorige = new Date(dt.getFullYear(), dt.getMonth() - 1, 1);
+    const volgende = new Date(dt.getFullYear(), dt.getMonth() + 1, 1);
+    const sleutelVan = d => maandSleutel(d.getFullYear(), d.getMonth() + 1);
+    const huidig = sleutelVan(dt);
+    const gekozen = b.loonmaand || huidig;
+    const naam = d => MAAND[d.getMonth()].charAt(0).toUpperCase() + MAAND[d.getMonth()].slice(1);
+    const opties = [
+      { sleutel: sleutelVan(vorige), label: naam(vorige) },
+      { sleutel: huidig, label: naam(dt) },
+      { sleutel: sleutelVan(volgende), label: naam(volgende) },
+    ];
+    return `<div class="sec"><div class="lab">${ICON.euro}Telt mee bij de loonmaand</div>
+      <div class="hint" style="margin-bottom:.5rem">Alleen bij een correctie/payroll-cutoff — laat op "${naam(dt)}" staan als deze dag gewoon bij zijn eigen maand hoort.</div>
+      <div class="seg full" role="tablist">
+        ${opties.map(o => `<button data-action="dag-loonmaand" data-val="${o.sleutel === huidig ? '' : o.sleutel}" aria-selected="${gekozen === o.sleutel}">${o.label}</button>`).join('')}
+      </div></div>`;
+  }
+
+  function correctieEditorHTML(ctx) {
+    const maandLabel = `${MAAND[ctx.zicht.maand - 1].charAt(0).toUpperCase() + MAAND[ctx.zicht.maand - 1].slice(1)} ${ctx.zicht.jaar}`;
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Correctie toevoegen">
+      <div class="sh-head"><div><div class="t">Correctie toevoegen</div><span class="chip">${maandLabel}</span></div>
+        <button class="x" data-action="sluit" aria-label="Sluiten">${ICON.kruis}</button></div>
+      <div class="sec"><div class="lab">${ICON.klok}Uren</div>
+        <div class="hint" style="margin-bottom:.5rem">Positief = extra uren die je nog kreeg uitbetaald · negatief = uren die teruggevorderd zijn.</div>
+        <input id="correctie-uren" class="amt-in" type="text" inputmode="decimal" placeholder="bijv. 5 of -2,5" style="width:100%">
+      </div>
+      <div class="sec"><div class="lab">${ICON.pen}Omschrijving</div>
+        <textarea class="note-input" id="correctie-notitie" placeholder="Bijv. nabetaling meer-gewerkte uren mei"></textarea>
+      </div>
+      <div class="actions"><button class="btn primary" data-action="correctie-opslaan">${ICON.vink}Opslaan</button></div>
+    </div>`;
+  }
+
   function dagDetailHTML(b, ctx) {
     const { state, vandaagIso } = ctx;
     const dt = new Date(b.iso + 'T00:00:00');
@@ -655,6 +742,7 @@
             </div></div>
           <div class="sec"><div class="lab">${ICON.pen}Notitie</div>
             <textarea class="note-input" id="notitie" placeholder="Bijv. drukke dag, extra taak…">${esc(b.notitie || '')}</textarea></div>
+          <div data-rol="loonmaand">${loonmaandSectieHTML(b)}</div>
         </div>
         <div class="sh-col">
           <div class="sec"><div class="lab">${ICON.euro}Verdiend op deze dag</div>
@@ -681,5 +769,5 @@
     </div>`;
   }
 
-  return { shellHTML, pageHTML, dagDetailHTML, breakdownHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, tijdlijnHTML, profielKiezerHTML };
+  return { shellHTML, pageHTML, dagDetailHTML, breakdownHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, tijdlijnHTML, loonmaandSectieHTML, correctieEditorHTML, profielKiezerHTML };
 });

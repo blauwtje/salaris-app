@@ -275,6 +275,7 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .c-work{ margin-top:auto; padding:4px 8px 0; line-height:1.15; }
 .c-work .u{ display:block; font:600 .78rem var(--body); color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .c-work .e{ display:block; font:800 .98rem var(--head); color:var(--verdiend); font-variant-numeric:tabular-nums; letter-spacing:-.02em; white-space:nowrap; }
+.c-work .verhuisd{ display:block; font:700 .68rem var(--body); color:var(--muted); white-space:nowrap; }
 
 
 /* legenda */
@@ -429,6 +430,8 @@ input[type=color].swatch::-moz-color-swatch{ border:0; border-radius:9px; }
 
 /* loonstrook percentage badge */
 .row .pct-badge{ display:inline-block; font:600 .61rem var(--body); letter-spacing:.02em; background:var(--surf3); color:var(--muted); border-radius:99px; padding:.06rem .38rem; margin-left:.3rem; vertical-align:middle; font-variant-numeric:tabular-nums; }
+/* generieke gedempte pil (bijv. "van mei" bij een herverdeelde dag) */
+.badge-muted{ display:inline-block; font:600 .61rem var(--body); letter-spacing:.02em; background:var(--surf3); color:var(--muted); border-radius:99px; padding:.06rem .38rem; margin-left:.3rem; vertical-align:middle; font-variant-numeric:tabular-nums; }
 .netto-ratio-wrap{ margin-top:.9rem; padding-top:.75rem; border-top:1px solid var(--border); }
 .netto-ratio-meta{ display:flex; justify-content:space-between; font-size:.77rem; color:var(--muted); margin-bottom:.4rem; }
 .netto-ratio-meta b{ color:var(--verdiend); font-variant-numeric:tabular-nums; }

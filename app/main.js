@@ -152,7 +152,7 @@
   // ---------- dag-detail ----------
   function openDag(iso) {
     const d = appState.dagen[iso] || { van: '09:00', tot: '17:30', locatie: 'kantoor', notitie: '' };
-    bewerk = { iso, van: d.van, tot: d.tot, extra: d.extra ? d.extra.map(e => ({ ...e })) : [], locatie: d.locatie || 'kantoor', notitie: d.notitie || '', zondagToeslag: d.zondagToeslag != null ? d.zondagToeslag : null };
+    bewerk = { iso, van: d.van, tot: d.tot, extra: d.extra ? d.extra.map(e => ({ ...e })) : [], locatie: d.locatie || 'kantoor', notitie: d.notitie || '', zondagToeslag: d.zondagToeslag != null ? d.zondagToeslag : null, loonmaand: d.loonmaand || null };
     openOverlay(S.ui.dagDetailHTML(bewerk, ctx()));
   }
   function syncNotitie() { const t = ovlEl.querySelector('#notitie'); if (t && bewerk) bewerk.notitie = t.value; }
@@ -173,6 +173,8 @@
     if (bd) bd.innerHTML = S.ui.breakdownHTML(bewerk, ctx());
     const toeslagEl = root.querySelector('[data-rol="toeslag"]');
     if (toeslagEl) toeslagEl.innerHTML = S.ui.toeslagSectieHTML(bewerk, ctx());
+    const loonmaandEl = root.querySelector('[data-rol="loonmaand"]');
+    if (loonmaandEl) loonmaandEl.innerHTML = S.ui.loonmaandSectieHTML(bewerk);
     const geldig = S.util.parseTime(bewerk.tot) > S.util.parseTime(bewerk.van);
     const fout = root.querySelector('[data-rol="tijdfout"]'); if (fout) fout.textContent = geldig ? '' : 'Eindtijd moet na de begintijd liggen.';
     const opsla = root.querySelector('[data-rol="opslaan"]'); if (opsla) { opsla.disabled = !geldig; opsla.style.opacity = geldig ? '' : '.5'; }
@@ -262,12 +264,36 @@
       } catch (e) { announce('Ongeldige code'); }
       return;
     }
+    // correcties (loonstrook) — geen dag-detail, eigen kleine overlay
+    if (a === 'correctie-nieuw') { openOverlay(S.ui.correctieEditorHTML(ctx())); return; }
+    if (a === 'correctie-opslaan') {
+      const urenEl = document.getElementById('correctie-uren');
+      const notitieEl = document.getElementById('correctie-notitie');
+      const uren = parseFloat(String((urenEl && urenEl.value) || '').replace(',', '.'));
+      if (!urenEl || isNaN(uren) || uren === 0) { announce('Vul een geldig aantal uren in'); return; }
+      const maandKey = `${zicht.jaar}-${String(zicht.maand).padStart(2, '0')}`;
+      const arr = appState.correcties[maandKey] || (appState.correcties[maandKey] = []);
+      arr.push({ id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), uren, notitie: ((notitieEl && notitieEl.value) || '').trim() });
+      bewaar(); announce('Correctie toegevoegd'); closeOverlay();
+      return;
+    }
+    if (a === 'correctie-del') {
+      const maandKey = `${zicht.jaar}-${String(zicht.maand).padStart(2, '0')}`;
+      const arr = appState.correcties[maandKey];
+      if (arr) { const idx = arr.findIndex(c => c.id === el.dataset.id); if (idx >= 0) arr.splice(idx, 1); }
+      bewaar(); renderContent(); return;
+    }
     // dag-detail
     if (bewerk) {
       if (a === 'loc') { bewerk.locatie = el.dataset.val; patchDag(); return; }
       if (a === 'dag-zondagtoeslag') {
         const eff = bewerk.zondagToeslag != null ? bewerk.zondagToeslag : !!appState.instellingen.zondagToeslag;
         bewerk.zondagToeslag = !eff;
+        patchDag(); return;
+      }
+      if (a === 'dag-loonmaand') {
+        const val = el.dataset.val;
+        if (val) bewerk.loonmaand = val; else bewerk.loonmaand = null;
         patchDag(); return;
       }
       if (a === 'shift-add') {
@@ -286,6 +312,7 @@
         const dagData = { van: bewerk.van, tot: bewerk.tot, locatie: bewerk.locatie, notitie: bewerk.notitie };
         if (bewerk.extra && bewerk.extra.length) dagData.extra = bewerk.extra.filter(e => S.util.parseTime(e.tot) > S.util.parseTime(e.van));
         if (bewerk.zondagToeslag != null && bewerk.zondagToeslag !== !!appState.instellingen.zondagToeslag) dagData.zondagToeslag = bewerk.zondagToeslag;
+        if (bewerk.loonmaand) dagData.loonmaand = bewerk.loonmaand;
         appState.dagen[bewerk.iso] = dagData;
         bewaar(); announce('Opgeslagen'); closeOverlay(); return;
       }
@@ -381,7 +408,9 @@
     const srcData = appState.dagen[dragSrcIso];
     if (!srcData) return;
     if (appState.dagen[targetIso] && !confirm(`Werkdata van ${targetIso} overschrijven met die van ${dragSrcIso}?`)) return;
-    appState.dagen[targetIso] = { ...srcData };
+    const nieuweData = { ...srcData };
+    delete nieuweData.loonmaand; // "aangrenzende loonmaand" was relatief aan de oude datum, klopt niet meer na verplaatsen
+    appState.dagen[targetIso] = nieuweData;
     delete appState.dagen[dragSrcIso];
     bewaar();
     announce(`Uren verplaatst naar ${targetIso}`);

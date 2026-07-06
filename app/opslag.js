@@ -9,6 +9,10 @@
   function defaultState() {
     return {
       versie: 1, dagen: {},
+      // Correcties: extra uren die niet aan een specifieke dag hangen (bijv. een nabetaling
+      // van een vorige, al afgesloten maand). Gekeyed op "YYYY-MM" → array van { id, uren, notitie }.
+      // Los van `dagen[iso].loonmaand` (per-dag override welke maand een dag fiscaal telt).
+      correcties: {},
       instellingen: {
         uurloon: 17.98, reiskostenPerKantoordag: 21.20,
         standaardWeergave: 'netto', loonheffingskorting: true,
