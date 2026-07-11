@@ -9,6 +9,7 @@
   let zicht = { jaar: today.getFullYear(), maand: today.getMonth() + 1 };
   let pagina = 'overzicht';
   let bewerk = null;        // dag-detail
+  let klembord = null;      // { iso, data } — gekopieerde dag, klaar om op andere dagen te plakken
   let highlightIso = null;  // tijdelijke flash op kalendercel
   let overzichtBewerk = false; // indeling-bewerkmodus op overzicht
   let profielKiezerVerplicht = false; // eerste keer: profiel kiezen kan niet weggeklikt worden
@@ -24,7 +25,7 @@
 
   const nuMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
   const profielNaam = () => { const p = S.opslag.PROFIELEN.find(x => x.id === profiel); return p ? p.naam : ''; };
-  const ctx = () => ({ state: appState, weergave: appState.instellingen.standaardWeergave || 'netto', zicht, pagina, vandaagIso: S.util.isoDate(new Date()), nuMin: nuMin(), highlightIso, overzichtBewerk, versie, profiel, profielen: S.opslag.PROFIELEN, profielNaam: profielNaam(), syncBeschikbaar: SY.configured(), syncTekst: syncTekstVan(syncStaat) });
+  const ctx = () => ({ state: appState, weergave: appState.instellingen.standaardWeergave || 'netto', zicht, pagina, vandaagIso: S.util.isoDate(new Date()), nuMin: nuMin(), highlightIso, klembord, overzichtBewerk, versie, profiel, profielen: S.opslag.PROFIELEN, profielNaam: profielNaam(), syncBeschikbaar: SY.configured(), syncTekst: syncTekstVan(syncStaat) });
   const bewaar = () => {
     versie++;
     if (!profiel) return;
@@ -155,6 +156,14 @@
     bewerk = { iso, van: d.van, tot: d.tot, extra: d.extra ? d.extra.map(e => ({ ...e })) : [], locatie: d.locatie || 'kantoor', notitie: d.notitie || '', zondagToeslag: d.zondagToeslag != null ? d.zondagToeslag : null, loonmaand: d.loonmaand || null };
     openOverlay(S.ui.dagDetailHTML(bewerk, ctx()));
   }
+  // Plakt de gekopieerde dag (klembord) op iso; blijft in plak-modus zodat meerdere dagen achter elkaar geplakt kunnen worden.
+  function plakOpDag(iso) {
+    appState.dagen[iso] = { ...klembord.data };
+    bewaar();
+    highlightIso = iso;
+    renderContent();
+    setTimeout(() => { highlightIso = null; renderContent(); }, 1600);
+  }
   function syncNotitie() { const t = ovlEl.querySelector('#notitie'); if (t && bewerk) bewerk.notitie = t.value; }
   function patchVoortgang() {
     if (!bewerk) return;
@@ -225,8 +234,9 @@
     if (a === 'today') { const t = new Date(); zicht = { jaar: t.getFullYear(), maand: t.getMonth() + 1 }; renderContent(); return; }
     if (a === 'goto-dag') { const iso = el.dataset.iso; const d = new Date(iso + 'T00:00:00'); zicht = { jaar: d.getFullYear(), maand: d.getMonth() + 1 }; pagina = 'kalender'; renderApp(); return; }
     if (a === 'goto-dag-flash') { const iso = el.dataset.iso; if (!iso) return; const d = new Date(iso + 'T00:00:00'); zicht = { jaar: d.getFullYear(), maand: d.getMonth() + 1 }; pagina = 'kalender'; highlightIso = iso; renderApp(); setTimeout(() => { highlightIso = null; renderContent(); }, 1600); return; }
-    if (a === 'dag') { openDag(el.dataset.iso); return; }
+    if (a === 'dag') { const iso = el.dataset.iso; if (klembord) { plakOpDag(iso); return; } openDag(iso); return; }
     if (a === 'holi') { announce(el.dataset.naam + ' — geen werkdag'); return; }
+    if (a === 'klembord-klaar') { klembord = null; renderContent(); return; }
     if (a === 'sluit') { closeOverlay(); return; }
     // instellingen — uiterlijk
     if (a === 'thema') { appState.instellingen.thema = el.dataset.val; bewaar(); pasToeUiterlijk(); renderContent(); return; }
@@ -317,6 +327,16 @@
         bewaar(); announce('Opgeslagen'); closeOverlay(); return;
       }
       if (a === 'verwijderen') { syncNotitie(); if (confirm('Deze dag verwijderen?')) { delete appState.dagen[bewerk.iso]; bewaar(); announce('Verwijderd'); closeOverlay(); } return; }
+      if (a === 'dag-kopieer') {
+        const bron = appState.dagen[bewerk.iso];
+        if (!bron) return;
+        const data = { ...bron };
+        delete data.loonmaand; // hoort bij de brondatum, geen betekenis op een andere dag
+        klembord = { iso: bewerk.iso, data };
+        announce(`Gekopieerd van ${S.util.dagDatum(new Date(bewerk.iso + 'T00:00:00'))}`);
+        closeOverlay();
+        return;
+      }
     }
   });
 
@@ -369,7 +389,9 @@
 
   ovlEl.addEventListener('click', e => { if (e.target === ovlEl && !profielKiezerVerplicht) closeOverlay(); });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !ovlEl.classList.contains('hidden') && !profielKiezerVerplicht) closeOverlay();
+    if (e.key !== 'Escape') return;
+    if (!ovlEl.classList.contains('hidden') && !profielKiezerVerplicht) { closeOverlay(); return; }
+    if (klembord) { klembord = null; renderContent(); }
   });
   window.addEventListener('online', () => syncPull(profiel));
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncPull(profiel); });

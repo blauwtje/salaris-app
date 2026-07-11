@@ -46,6 +46,7 @@
     reset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>',
     persoon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
     wissel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 4 3 8l4 4"/><path d="M3 8h13a5 5 0 0 1 0 10h-1"/><path d="M17 20l4-4-4-4"/></svg>',
+    kopie: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   };
   const THEMA_ICON = { systeem: ICON.laptop, licht: ICON.sun, donker: ICON.moon, zwart: ICON.oled };
 
@@ -310,7 +311,13 @@
     const VOLDAG = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
     const dow = VOLDAG.map((d, i) => `<b class="${i >= 5 ? 'we' : ''}" title="${d}"><span class="dow-lg">${d}</span><span class="dow-sm">${d.slice(0, 2)}</span></b>`).join('');
 
+    const klembordHTML = ctx.klembord ? `<div class="klembord-banner">
+        <span>Gekopieerd van <b>${U.dagDatum(new Date(ctx.klembord.iso + 'T00:00:00'))}</b> — klik op dagen om te plakken</span>
+        <button class="btn" data-action="klembord-klaar">Klaar</button>
+      </div>` : '';
+
     return `${paginakopHTML('Kalender')}
+      ${klembordHTML}
       <div class="kal-wrap">
         <div class="calcard">
           <div class="calhead">
@@ -751,6 +758,7 @@
         </div>
       </div>
       <div class="actions"><button class="btn primary" data-action="opslaan" data-rol="opslaan" ${geldig ? '' : 'disabled style="opacity:.5"'}>${ICON.vink}Werkdag opslaan</button>
+        ${state.dagen[b.iso] ? `<button class="btn" data-action="dag-kopieer">${ICON.kopie}Kopieer dag</button>` : ''}
         ${state.dagen[b.iso] ? `<button class="btn danger" data-action="verwijderen">${ICON.prul}Verwijderen</button>` : ''}</div>
     </div>`;
   }

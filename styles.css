@@ -134,6 +134,8 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 @media (max-width:560px){ .ov-grid{ grid-template-columns:1fr; } .ov-w.groot{ grid-column:span 1; } }
 
 /* ---------- kalender-pagina ---------- */
+.klembord-banner{ display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap; margin-bottom:.9rem; padding:.6rem .9rem; border:1.5px solid var(--accent); border-radius:12px; background:var(--accent-soft); color:var(--text); font-size:.85rem; }
+.klembord-banner .btn{ min-height:34px; padding:0 .8rem; font-size:.82rem; }
 .kal-wrap{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 260px; gap:1.2rem; }
 .kal-wrap .calcard{ min-height:0; display:flex; flex-direction:column; }
 .kal-wrap .cal{ flex:1; min-height:0; grid-auto-rows:minmax(74px,1fr); }
