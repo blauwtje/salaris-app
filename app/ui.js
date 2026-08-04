@@ -107,11 +107,11 @@
   // ---------- ZIJBALK ----------
   function navItem(pagina, huidig, icon, label) {
     const on = pagina === huidig ? ' aria-current="page" class="ni on"' : ' class="ni"';
-    return `<button data-action="pagina" data-val="${pagina}"${on}>${icon}<span>${label}</span></button>`;
+    return `<button data-action="pagina" data-val="${pagina}" aria-label="${label}"${on}>${icon}<span class="ni-label">${label}</span></button>`;
   }
   function sidebarHTML(ctx) {
     const p = ctx.pagina;
-    return `<div class="brand"><span class="dot"></span>Salaris</div>
+    return `<div class="brand"><span class="dot"></span><span class="brand-txt">Salaris</span><span class="sync-dot" data-staat="${ctx.syncStaat}" title="${esc(ctx.syncTekst)}" aria-label="${esc(ctx.syncTekst)}"></span></div>
       <nav class="nav" aria-label="Pagina's">
         ${navItem('overzicht', p, ICON.maand, 'Overzicht')}
         ${navItem('kalender', p, ICON.week, 'Kalender')}
@@ -123,7 +123,7 @@
         <span class="pf-avatar sm">${initialen(ctx.profielNaam)}</span>
         <span class="pf-naam">${esc(ctx.profielNaam)}</span>
         <span class="pf-chev">${ICON.wissel}</span></button>` : ''}
-      <div class="sb-foot">${ICON.slot}Alles lokaal in je browser bewaard.</div>`;
+      <div class="sb-foot">${ICON.slot}Lokaal opgeslagen, automatisch gesynct.</div>`;
   }
 
   // ---------- PAGINAKOP ----------
@@ -225,7 +225,7 @@
       vakantiegeld: { label: 'Vakantiegeld', html: `<div class="card clickable" data-action="pagina" data-val="loonstrook"><div class="lab">${ICON.euro}Vakantiegeld</div><div class="big">${U.fmtEuro(M.vakantiegeld)}</div><div class="sub muted">deze maand opgebouwd</div></div>` },
       volgende: { label: 'Volgende werkdag', html: volg ? `<div class="card clickable" data-action="goto-dag-flash" data-iso="${volg}"><div class="lab">${ICON.pijl}Volgende werkdag</div><div class="big" style="font-size:1.2rem;margin-top:.5rem">${volgBig}</div><div class="sub">${volgSub}</div></div>` : `<div class="card"><div class="lab">${ICON.pijl}Volgende werkdag</div><div class="big" style="font-size:1.2rem;margin-top:.5rem">${volgBig}</div><div class="sub">${volgSub}</div></div>` },
       voortgang: { label: 'Werkdag vandaag', html: progCard },
-      maanddetail: { label: 'Deze maand (bedragen)', html: `<div class="card"><div class="lab">${ICON.euro}Deze maand</div><div class="bd" style="box-shadow:none;border:0;padding:.6rem 0 0;background:transparent">${lsRows}</div>${uurloonBlok}</div>` },
+      maanddetail: { label: 'Deze maand (bedragen)', html: `<div class="card"><div class="lab">${ICON.euro}Deze maand</div><div class="bd plain">${lsRows}</div>${uurloonBlok}</div>` },
       binnenkort: { label: 'Binnenkort', html: `<div class="card"><div class="lab">${ICON.klok}Binnenkort</div><div class="up">
             <button class="up-row btn-row" data-action="goto-dag" data-iso="${d19Iso}"><span class="ic hr">${ICON.omhoog}</span><span><b>${d19.getDate()} ${MAAND[d19.getMonth()]}</b> <span class="d">— uren indienen</span><span class="days-away">${daysAway(agen19)}</span></span></button>
             <button class="up-row btn-row" data-action="goto-dag" data-iso="${d25Iso}"><span class="ic pay">${ICON.euro}</span><span><b>${d25.getDate()} ${MAAND[d25.getMonth()]}</b> <span class="d">— salaris</span><span class="days-away">${daysAway(agen25)}</span></span></button>
@@ -243,6 +243,8 @@
         const d = widgetDefs[wd.id];
         return `<div class="ov-w ${wd.groot ? 'groot' : ''} ${wd.zicht ? '' : 'ov-uit'}" draggable="true" data-action="ov-w" data-id="${wd.id}">
           <div class="ov-ctrls"><span class="ov-drag" aria-hidden="true">⋮⋮</span><span class="ov-wlabel">${d.label}</span>
+            <button class="ov-cbtn" data-action="ov-op" data-id="${wd.id}" aria-label="Omhoog">↑</button>
+            <button class="ov-cbtn" data-action="ov-neer" data-id="${wd.id}" aria-label="Omlaag">↓</button>
             <button class="ov-cbtn" data-action="ov-size" data-id="${wd.id}" title="Grootte">${wd.groot ? '1×' : '2×'}</button>
             <button class="ov-cbtn" data-action="ov-${wd.zicht ? 'hide' : 'show'}" data-id="${wd.id}">${wd.zicht ? 'Verberg' : 'Toon'}</button>
           </div>
@@ -261,7 +263,7 @@
   function dagCelHTML(c, ctx, map, idx) {
     const { state, weergave } = ctx;
     if (c.uitMaand) return `<div class="c out"><div class="c-top"><span class="num">${c.dagNummer}</span></div></div>`;
-    if (c.geblokkeerd) return `<div class="c holi" data-action="holi" data-naam="${esc(c.feestdag)}"><div class="c-top"><span class="num">${c.dagNummer}</span>${ICON.slot.replace('<svg', '<svg class="lock"')}</div><div class="holi-naam">${esc(c.feestdag)}</div></div>`;
+    if (c.geblokkeerd) return `<button type="button" class="c holi" data-action="holi" data-naam="${esc(c.feestdag)}"><div class="c-top"><span class="num">${c.dagNummer}</span>${ICON.slot.replace('<svg', '<svg class="lock"')}</div><div class="holi-naam">${esc(c.feestdag)}</div></button>`;
 
     // Fysieke aanwezigheid (heb je hier gewerkt) staat los van fiscale aanwezigheid in déze
     // loonmaand (pd) — een dag kan naar een andere loonmaand herverdeeld zijn (dagDetail →
@@ -274,10 +276,10 @@
     const heeftNotitie = !!(dagData && dagData.notitie);
     const marks = [];
     if (heeftWerk) marks.push(`<span class="mk loc">${dagData.locatie === 'thuis' ? 'T' : 'K'}</span>`);
-    if (c.hrDeadline) marks.push('<span class="mk hr" title="Uren indienen"></span>');
+    if (c.hrDeadline) marks.push('<span class="mk hr" title="Uren indienen"><span class="sr-only">Uren indienen</span></span>');
     if (c.salarisdag) marks.push('<span class="mk pay">€</span>');
     if (c.toeslag > 0) marks.push(`<span class="mk toesl" title="Toeslag +${Math.round(c.toeslag * 100)}%">+${Math.round(c.toeslag * 100)}%</span>`);
-    if (heeftNotitie) marks.push('<span class="mk note" title="Heeft opmerking"></span>');
+    if (heeftNotitie) marks.push('<span class="mk note" title="Heeft opmerking"><span class="sr-only">Heeft opmerking</span></span>');
 
     const specialLabel = c.hrDeadline ? `<div class="c-special hr">Uren indienen</div>` : c.salarisdag ? `<div class="c-special pay">Salaris</div>` : '';
 
@@ -292,11 +294,11 @@
 
     const cls = ['c']; if (c.vandaag) cls.push('today'); if (c.zondag) cls.push('weekend'); if (c.toeslag > 0) cls.push('toeslagdag'); if (heeftWerk) cls.push('worked', 'has-content'); if (heeftNotitie) cls.push('has-note'); if (ctx.highlightIso === c.iso) cls.push('flash');
     const draggable = heeftWerk ? ' draggable="true"' : '';
-    return `<div class="${cls.join(' ')}"${draggable} data-action="dag" data-iso="${c.iso}">
+    return `<button type="button" class="${cls.join(' ')}"${draggable} data-action="dag" data-iso="${c.iso}">
       <div class="c-top"><span class="num">${c.dagNummer}</span><span class="marks">${marks.join('')}</span></div>
       ${specialLabel}
       ${werk}
-    </div>`;
+    </button>`;
   }
 
   function kalenderPage(ctx) {
@@ -311,13 +313,7 @@
     const VOLDAG = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
     const dow = VOLDAG.map((d, i) => `<b class="${i >= 5 ? 'we' : ''}" title="${d}"><span class="dow-lg">${d}</span><span class="dow-sm">${d.slice(0, 2)}</span></b>`).join('');
 
-    const klembordHTML = ctx.klembord ? `<div class="klembord-banner">
-        <span>Gekopieerd van <b>${U.dagDatum(new Date(ctx.klembord.iso + 'T00:00:00'))}</b> — klik op dagen om te plakken</span>
-        <button class="btn" data-action="klembord-klaar">Klaar</button>
-      </div>` : '';
-
     return `${paginakopHTML('Kalender')}
-      ${klembordHTML}
       <div class="kal-wrap">
         <div class="calcard">
           <div class="calhead">
@@ -327,11 +323,11 @@
             <button class="today-btn" data-action="today">Vandaag</button>
           </div>
           <div class="dow">${dow}</div>
-          <div class="cal">${cellHTML}</div>
+          <div class="cal${ctx.klembord ? ' plakmodus' : ''}">${cellHTML}</div>
         </div>
         <aside class="kal-rail">
           <div class="card"><div class="lab">${ICON.maand}Deze maand</div>
-            <div class="bd" style="box-shadow:none;border:0;padding:.6rem 0 0;background:transparent">
+            <div class="bd plain">
               <div class="row"><span class="k">Uren</span><span class="v">${U.fmtUren(urenMaand)}</span></div>
               <div class="row"><span class="k">Bruto</span><span class="v">${U.fmtEuro(M.svBase)}</span></div>
               <div class="row"><span class="k">Reiskosten <span class="f">(onbelast)</span></span><span class="v">${U.fmtEuro(M.reiskosten)}</span></div>
@@ -341,12 +337,13 @@
           </div>
           <div class="card"><div class="lab">Legenda</div>
             <div class="legend">
+              <span class="leg-row stat"><span>T · K</span><span>thuis · kantoor</span></span>
               <span class="leg-row stat"><span class="leg-dot" style="background:var(--verdiend)"></span><span>gewerkt</span></span>
               <span class="leg-row stat"><span class="leg-dot" style="background:var(--suntint)"></span><span>toeslagdag</span></span>
               <span class="leg-row stat"><span class="leg-dot circ" style="background:var(--accent)"></span><span>19e: indienen</span></span>
               <span class="leg-row stat"><span class="leg-dot circ" style="background:var(--verdiend-soft)"></span><span>25e: salaris</span></span>
               <span class="leg-row stat"><span class="leg-dot" style="background:var(--surf3);border:1px solid var(--border-2)"></span><span>feestdag</span></span>
-              <span class="leg-row stat"><span class="leg-dot" style="background:color-mix(in srgb,#F472B6 40%,var(--surf2))"></span><span>opmerking</span></span>
+              <span class="leg-row stat"><span class="leg-dot note"></span><span>opmerking</span></span>
             </div>
           </div>
         </aside>
@@ -371,7 +368,7 @@
     let rows = `<div class="row"><span class="k">Salaris</span><span class="v">${U.fmtEuro(salaris)}</span></div>`;
     if (toeslag > 0) rows += `<div class="row toeslag"><span class="k">Toeslag</span><span class="v">${U.fmtEuro(toeslag)}</span></div>`;
     if (extraUren !== 0) rows += `<div class="row"><span class="k">Correctie <span class="f">(${extraUren > 0 ? '+' : '−'}${U.fmtUren(Math.abs(extraUren))})</span></span><span class="v">${U.fmtEuro(extraLoon)}</span></div>`;
-    rows += `<div class="rule"></div><div class="row bruto"><span class="k">Bruto totaal</span><span class="v">${U.fmtEuro(svBase)}</span></div>`;
+    rows += `<div class="rule"></div><div class="row bruto"><span class="k">Heffingsgrondslag <span class="f">(bruto zonder reiskosten)</span></span><span class="v">${U.fmtEuro(svBase)}</span></div>`;
     if (netto) {
       rows += `<div class="row inhoud sub-i"><span class="k">Pensioen${pct(t.pensioen)}</span><span class="v">−${U.fmtEuro(t.pensioen)}</span></div>
         <div class="row inhoud sub-i"><span class="k">PAWW${pct(t.paww)}</span><span class="v">−${U.fmtEuro(t.paww)}</span></div>
@@ -440,6 +437,16 @@
           </div>
           <div class="card"><div class="bd" style="box-shadow:none;border:0;background:transparent;padding:0">${rows}</div>
             <div class="foot" style="margin-top:1rem">${ICON.slot}Vakantiegeld opgebouwd deze maand: ${U.fmtEuro(t.vakantiegeldReservering)} (in mei uitbetaald).</div>
+            <details class="uitleg"><summary>Wat betekenen deze regels?</summary>
+              <dl>
+                <dt>Heffingsgrondslag</dt><dd>Je brutoloon minus de onbelaste reiskosten — hierover wordt belasting en premie berekend.</dd>
+                <dt>Pensioen</dt><dd>Je eigen bijdrage aan de pensioenregeling.</dd>
+                <dt>PAWW</dt><dd>Private Aanvulling WW: verlengt je WW-uitkering als je werkloos wordt.</dd>
+                <dt>WGA</dt><dd>Werkhervatting Gedeeltelijk Arbeidsgeschikten: je eigen bijdrage aan de arbeidsongeschiktheidsverzekering.</dd>
+                <dt>Loonheffing (tabel)</dt><dd>Belasting over je gewone loon, volgens de maandtabel 2026.</dd>
+                <dt>Loonheffing (bijz. tarief)</dt><dd>Belasting over eenmalige bedragen zoals toeslag en correcties, tegen een vast percentage.</dd>
+              </dl>
+            </details>
           </div>
           ${correctieCard}
         </div>
@@ -448,7 +455,7 @@
   }
 
   // ---------- INSTELLINGEN ----------
-  function geldVeld(id, val) { return `<div class="amount"><span class="e">€</span><input id="${id}" class="amt-in" type="text" inputmode="decimal" value="${val}"></div>`; }
+  function geldVeld(id, val, label) { return `<div class="amount"><span class="e">€</span><input id="${id}" class="amt-in" type="text" inputmode="decimal" value="${val}" aria-label="${esc(label)}"></div>`; }
   function switchHTML(action, aan) {
     return `<button class="switch ${aan ? 'on' : ''}" data-action="${action}" role="switch" aria-checked="${aan}" aria-label="${aan ? 'Aan' : 'Uit'}"><span class="sw-knob"></span><span class="sw-tekst">${aan ? 'Aan' : 'Uit'}</span></button>`;
   }
@@ -500,8 +507,8 @@
         </section>
         <section class="set-sec wide"><h3 class="set-h">${ICON.euro}Loon &amp; toeslag</h3>
           <div class="set-grid2">
-            <div class="set-row"><div class="info"><div class="name">Uurloon</div><div class="hint">Je bruto loon per uur.</div></div>${geldVeld('set-uurloon', i.uurloon)}</div>
-            <div class="set-row"><div class="info"><div class="name">Reiskostenvergoeding per kantoordag</div><div class="hint">Onbelaste vergoeding op kantoordagen.</div></div>${geldVeld('set-reis', i.reiskostenPerKantoordag)}</div>
+            <div class="set-row"><div class="info"><div class="name">Uurloon</div><div class="hint">Je bruto loon per uur.</div></div>${geldVeld('set-uurloon', i.uurloon, 'Uurloon')}</div>
+            <div class="set-row"><div class="info"><div class="name">Reiskostenvergoeding per kantoordag</div><div class="hint">Onbelaste vergoeding op kantoordagen.</div></div>${geldVeld('set-reis', i.reiskostenPerKantoordag, 'Reiskostenvergoeding per kantoordag')}</div>
           </div>
           <div class="set-row"><div class="info"><div class="name">Zondagtoeslag +50%</div><div class="hint">Standaard op zondagen. Per zondag aan/uit in de kalender.</div></div>${switchHTML('set-zondagtoeslag', !!i.zondagToeslag)}</div>
         </section>
@@ -517,7 +524,7 @@
             <div class="seg" role="tablist"><button data-action="set-weergave" data-val="bruto" aria-selected="${w === 'bruto'}">Bruto</button><button data-action="set-weergave" data-val="netto" aria-selected="${w === 'netto'}">Netto</button></div></div>
           <div class="actions" style="margin-top:.5rem"><button class="btn" data-action="export" style="flex:1">${ICON.down}Exporteren (bestand)</button><button class="btn" data-action="import" style="flex:1">${ICON.up2}Importeren (bestand)</button></div>
           ${overzettenHTML()}
-          <div class="foot">${ICON.slot}Alles wordt lokaal in je browser bewaard en blijft na herstart staan.</div>
+          <div class="foot">${ICON.slot}Je gegevens staan lokaal in je browser en worden versleuteld gesynchroniseerd tussen je apparaten.</div>
         </section>
       </div></div>`;
   }
@@ -589,7 +596,11 @@
     }
   }
   function shellHTML(ctx) {
-    return `<aside class="sb">${sidebarHTML(ctx)}</aside><main id="content" class="content">${pageHTML(ctx)}</main>`;
+    const klembordHTML = ctx.klembord ? `<div class="klembord-banner">
+        <span>Gekopieerd van <b>${U.dagDatum(new Date(ctx.klembord.iso + 'T00:00:00'))}</b> — klik op dagen om te plakken</span>
+        <button class="btn" data-action="klembord-klaar">Klaar</button>
+      </div>` : '';
+    return `<aside class="sb">${sidebarHTML(ctx)}</aside>${klembordHTML}<main id="content" class="content">${pageHTML(ctx)}</main>`;
   }
 
   // ---------- DAG-DETAIL ----------
@@ -713,12 +724,12 @@
 
   function correctieEditorHTML(ctx) {
     const maandLabel = `${MAAND[ctx.zicht.maand - 1].charAt(0).toUpperCase() + MAAND[ctx.zicht.maand - 1].slice(1)} ${ctx.zicht.jaar}`;
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Correctie toevoegen">
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Correctie toevoegen" tabindex="-1" autofocus>
       <div class="sh-head"><div><div class="t">Correctie toevoegen</div><span class="chip">${maandLabel}</span></div>
         <button class="x" data-action="sluit" aria-label="Sluiten">${ICON.kruis}</button></div>
       <div class="sec"><div class="lab">${ICON.klok}Uren</div>
         <div class="hint" style="margin-bottom:.5rem">Positief = extra uren die je nog kreeg uitbetaald · negatief = uren die teruggevorderd zijn.</div>
-        <input id="correctie-uren" class="amt-in" type="text" inputmode="decimal" placeholder="bijv. 5 of -2,5" style="width:100%">
+        <input id="correctie-uren" class="amt-in" type="text" inputmode="decimal" placeholder="bijv. 5 of -2,5" aria-label="Uren" style="width:100%">
       </div>
       <div class="sec"><div class="lab">${ICON.pen}Omschrijving</div>
         <textarea class="note-input" id="correctie-notitie" placeholder="Bijv. nabetaling meer-gewerkte uren mei"></textarea>
@@ -732,7 +743,7 @@
     const dt = new Date(b.iso + 'T00:00:00');
     const isVandaag = b.iso === vandaagIso;
     const geldig = U.parseTime(b.tot) > U.parseTime(b.van);
-    return `<div class="sheet wide" role="dialog" aria-modal="true">
+    return `<div class="sheet wide" role="dialog" aria-modal="true" aria-label="Werkdag bewerken" tabindex="-1" autofocus>
       <div class="sh-head"><div><div class="t">${U.dagNaam(dt)} ${dt.getDate()} ${MAAND[dt.getMonth()]} ${dt.getFullYear()}</div>${isVandaag ? '<span class="chip">Vandaag</span>' : ''}</div>
         <button class="x" data-action="sluit" aria-label="Sluiten">${ICON.kruis}</button></div>
       <div class="sh-prog" data-rol="prog">${voortgangHTML(b, ctx)}</div>
@@ -770,12 +781,18 @@
         <span class="pf-naam">${esc(p.naam)}</span>
         ${ctx.profiel === p.id ? `<span class="pf-vink">${ICON.vink}</span>` : ''}</button>`).join('');
     const sluit = ctx.profiel ? `<button class="x" data-action="sluit" aria-label="Sluiten">${ICON.kruis}</button>` : '';
-    return `<div class="sheet profiel-sheet" role="dialog" aria-modal="true" aria-label="Kies profiel">
+    return `<div class="sheet profiel-sheet" role="dialog" aria-modal="true" aria-label="Kies profiel" tabindex="-1" autofocus>
       <div class="sh-head"><div><div class="t">Wie ben je?</div></div>${sluit}</div>
       <p class="pf-uitleg">Kies je profiel. Ieder houdt z'n eigen uren bij; je blijft op dit apparaat ingelogd en alles synchroniseert automatisch tussen je apparaten.</p>
       <div class="profiel-grid">${kaarten}</div>
     </div>`;
   }
 
-  return { shellHTML, pageHTML, dagDetailHTML, breakdownHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, tijdlijnHTML, loonmaandSectieHTML, correctieEditorHTML, profielKiezerHTML };
+  function meldingHTML(m) {
+    if (!m) return '';
+    const knop = m.herstel ? `<button class="meld-undo" data-action="herstel">Ongedaan maken</button>` : '';
+    return `<div class="meld ${m.soort || ''}">${esc(m.tekst)}${knop}</div>`;
+  }
+
+  return { shellHTML, pageHTML, dagDetailHTML, breakdownHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, tijdlijnHTML, loonmaandSectieHTML, correctieEditorHTML, profielKiezerHTML, meldingHTML };
 });

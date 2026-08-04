@@ -20,12 +20,12 @@
 
   const appEl = document.getElementById('app');
   const ovlEl = document.getElementById('overlay');
-  const liveEl = document.getElementById('live');
+  const meldEl = document.getElementById('melding');
   const mqDark = window.matchMedia('(prefers-color-scheme: dark)');
 
   const nuMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
   const profielNaam = () => { const p = S.opslag.PROFIELEN.find(x => x.id === profiel); return p ? p.naam : ''; };
-  const ctx = () => ({ state: appState, weergave: appState.instellingen.standaardWeergave || 'netto', zicht, pagina, vandaagIso: S.util.isoDate(new Date()), nuMin: nuMin(), highlightIso, klembord, overzichtBewerk, versie, profiel, profielen: S.opslag.PROFIELEN, profielNaam: profielNaam(), syncBeschikbaar: SY.configured(), syncTekst: syncTekstVan(syncStaat) });
+  const ctx = () => ({ state: appState, weergave: appState.instellingen.standaardWeergave || 'netto', zicht, pagina, vandaagIso: S.util.isoDate(new Date()), nuMin: nuMin(), highlightIso, klembord, overzichtBewerk, versie, profiel, profielen: S.opslag.PROFIELEN, profielNaam: profielNaam(), syncBeschikbaar: SY.configured(), syncStaat, syncTekst: syncTekstVan(syncStaat) });
   const bewaar = () => {
     versie++;
     if (!profiel) return;
@@ -35,7 +35,15 @@
     syncPush(profiel, nu);
   };
   function openProfielKiezer(verplicht) { profielKiezerVerplicht = !!verplicht; openOverlay(S.ui.profielKiezerHTML(ctx())); }
-  const announce = t => { liveEl.textContent = t; };
+  let melding = null, meldTimer = 0;
+  function meld(tekst, opties) {
+    clearTimeout(meldTimer);
+    melding = { tekst, soort: (opties && opties.soort) || '', herstel: (opties && opties.herstel) || null };
+    meldEl.innerHTML = S.ui.meldingHTML(melding);
+    // Undo krijgt meer tijd dan een kale bevestiging.
+    meldTimer = setTimeout(sluitMelding, melding.herstel ? 8000 : 3200);
+  }
+  function sluitMelding() { clearTimeout(meldTimer); melding = null; meldEl.innerHTML = ''; }
 
   // ---------- cloud-sync (versleuteld, per profiel) ----------
   const TS_KEY = 'salaris-sync-ts';
@@ -48,7 +56,12 @@
       : s === 'offline' ? 'Offline — lokaal opgeslagen, synct later vanzelf.'
       : '';
   }
-  function syncStatus(s) { syncStaat = s; if (pagina === 'instellingen' && ovlEl.classList.contains('hidden')) renderContent(); }
+  function syncStatus(s) {
+    syncStaat = s;
+    const dot = document.querySelector('.sync-dot');
+    if (dot) { dot.dataset.staat = s; const t = syncTekstVan(s); dot.title = t; dot.setAttribute('aria-label', t); }
+    if (pagina === 'instellingen' && !ovlEl.open) renderContent();
+  }
   function syncPush(id, ts, snapshot) {
     if (!SY.configured()) return;
     pushPending = { id, ts, state: snapshot || appState };
@@ -56,7 +69,7 @@
     pushTimer = setTimeout(async () => {
       const job = pushPending; pushPending = null; if (!job) return;
       try { await SY.push(job.id, job.state, job.ts); syncStatus('ok'); }
-      catch (e) { syncStatus('offline'); }
+      catch (e) { const wasOffline = syncStaat === 'offline'; syncStatus('offline'); if (!wasOffline) meld('Offline — lokaal opgeslagen, synct later vanzelf.'); }
     }, 800);
   }
   async function syncPull(id) {
@@ -127,7 +140,7 @@
     }
   }
   mqDark.addEventListener('change', () => {
-    if (appState.instellingen.thema === 'systeem') { pasToeUiterlijk(); if (pagina === 'instellingen' && ovlEl.classList.contains('hidden')) renderContent(); }
+    if (appState.instellingen.thema === 'systeem') { pasToeUiterlijk(); if (pagina === 'instellingen' && !ovlEl.open) renderContent(); }
   });
 
   const renderApp = () => { appEl.className = 'shell'; appEl.innerHTML = S.ui.shellHTML(ctx()); };
@@ -141,14 +154,17 @@
     if (nieuwScroll) nieuwScroll.scrollTop = y;
     c.scrollTop = cy;
   };
-  const openOverlay = html => { ovlEl.innerHTML = html; ovlEl.classList.remove('hidden'); };
-  const closeOverlay = () => {
-    ovlEl.classList.add('hidden'); ovlEl.innerHTML = ''; bewerk = null;
+  const openOverlay = html => { ovlEl.innerHTML = html; ovlEl.showModal(); };
+  const closeOverlay = () => ovlEl.close();
+  ovlEl.addEventListener('close', () => {
+    ovlEl.innerHTML = ''; bewerk = null;
     const c = document.getElementById('content');
     if (c) c.classList.add('no-anim');
     renderContent();
     requestAnimationFrame(() => { if (c) c.classList.remove('no-anim'); });
-  };
+  });
+  // Verplichte profielkeuze mag niet met Escape of via de achtergrond weg.
+  ovlEl.addEventListener('cancel', e => { if (profielKiezerVerplicht) e.preventDefault(); });
 
   // ---------- dag-detail ----------
   function openDag(iso) {
@@ -158,10 +174,12 @@
   }
   // Plakt de gekopieerde dag (klembord) op iso; blijft in plak-modus zodat meerdere dagen achter elkaar geplakt kunnen worden.
   function plakOpDag(iso) {
+    const vorige = appState.dagen[iso];
     appState.dagen[iso] = { ...klembord.data };
     bewaar();
     highlightIso = iso;
     renderContent();
+    meld(`Geplakt op ${S.util.dagDatum(new Date(iso + 'T00:00:00'))}`, { herstel: () => { if (vorige) appState.dagen[iso] = vorige; else delete appState.dagen[iso]; } });
     setTimeout(() => { highlightIso = null; renderContent(); }, 1600);
   }
   function syncNotitie() { const t = ovlEl.querySelector('#notitie'); if (t && bewerk) bewerk.notitie = t.value; }
@@ -201,6 +219,13 @@
     const opsla = root.querySelector('[data-rol="opslaan"]'); if (opsla) { opsla.disabled = !geldig; opsla.style.opacity = geldig ? '' : '.5'; }
     patchVoortgang();
   }
+  // Bouwt het opslaanbare dag-object uit de lopende bewerking (gebruikt door zowel opslaan als kopiëren).
+  function dagDataUitBewerk() {
+    const dagData = { van: bewerk.van, tot: bewerk.tot, locatie: bewerk.locatie, notitie: bewerk.notitie };
+    if (bewerk.extra && bewerk.extra.length) dagData.extra = bewerk.extra.filter(e => S.util.parseTime(e.tot) > S.util.parseTime(e.van));
+    if (bewerk.zondagToeslag != null && bewerk.zondagToeslag !== !!appState.instellingen.zondagToeslag) dagData.zondagToeslag = bewerk.zondagToeslag;
+    return dagData;
+  }
   // ---------- tijd-invoer ----------
   function leesVeld(idx, veld) { return idx === 0 ? bewerk[veld] : bewerk.extra[idx - 1][veld]; }
   function schrijfVeld(idx, veld, waarde) { if (idx === 0) bewerk[veld] = waarde; else bewerk.extra[idx - 1][veld] = waarde; }
@@ -220,7 +245,7 @@
         versie++; // memo in ui.js cachet op versie; ander profiel = andere data
       }
       profielKiezerVerplicht = false;
-      ovlEl.classList.add('hidden'); ovlEl.innerHTML = '';
+      closeOverlay();
       pasToeUiterlijk(); renderApp(); naProfiel();
       return;
     }
@@ -228,6 +253,15 @@
     if (a === 'ov-size') { widgetCfg(el.dataset.id).groot = !widgetCfg(el.dataset.id).groot; bewaar(); renderContent(); return; }
     if (a === 'ov-hide') { widgetCfg(el.dataset.id).zicht = false; bewaar(); renderContent(); return; }
     if (a === 'ov-show') { widgetCfg(el.dataset.id).zicht = true; bewaar(); renderContent(); return; }
+    if (a === 'ov-op' || a === 'ov-neer') {
+      const arr = appState.instellingen.overzichtWidgets || [];
+      const van = arr.findIndex(w => w.id === el.dataset.id);
+      const naar = van + (a === 'ov-op' ? -1 : 1);
+      if (van < 0 || naar < 0 || naar >= arr.length) return;
+      const [w] = arr.splice(van, 1); arr.splice(naar, 0, w);
+      bewaar(); renderContent();
+      return;
+    }
     if (a === 'ov-w') return; // alleen sleepbaar in bewerkmodus; klik niets
     if (a === 'prev') { if (--zicht.maand < 1) { zicht.maand = 12; zicht.jaar--; } renderContent(); return; }
     if (a === 'next') { if (++zicht.maand > 12) { zicht.maand = 1; zicht.jaar++; } renderContent(); return; }
@@ -235,9 +269,10 @@
     if (a === 'goto-dag') { const iso = el.dataset.iso; const d = new Date(iso + 'T00:00:00'); zicht = { jaar: d.getFullYear(), maand: d.getMonth() + 1 }; pagina = 'kalender'; renderApp(); return; }
     if (a === 'goto-dag-flash') { const iso = el.dataset.iso; if (!iso) return; const d = new Date(iso + 'T00:00:00'); zicht = { jaar: d.getFullYear(), maand: d.getMonth() + 1 }; pagina = 'kalender'; highlightIso = iso; renderApp(); setTimeout(() => { highlightIso = null; renderContent(); }, 1600); return; }
     if (a === 'dag') { const iso = el.dataset.iso; if (klembord) { plakOpDag(iso); return; } openDag(iso); return; }
-    if (a === 'holi') { announce(el.dataset.naam + ' — geen werkdag'); return; }
-    if (a === 'klembord-klaar') { klembord = null; renderContent(); return; }
+    if (a === 'holi') { meld(el.dataset.naam + ' — geen werkdag'); return; }
+    if (a === 'klembord-klaar') { klembord = null; renderApp(); return; }
     if (a === 'sluit') { closeOverlay(); return; }
+    if (a === 'herstel') { if (melding && melding.herstel) { melding.herstel(); bewaar(); renderContent(); sluitMelding(); meld('Ongedaan gemaakt'); } return; }
     // instellingen — uiterlijk
     if (a === 'thema') { appState.instellingen.thema = el.dataset.val; bewaar(); pasToeUiterlijk(); renderContent(); return; }
     if (a === 'accent') { appState.instellingen.accent = el.dataset.val; bewaar(); pasToeUiterlijk(); renderContent(); return; }
@@ -259,19 +294,21 @@
       if (!nuVerborgen) {
         if (ta) { ta.value = S.opslag.codeer(appState); ta.focus(); ta.select(); try { document.execCommand('copy'); } catch (e) {} }
         if (lbl) lbl.textContent = 'Verberg mijn code';
-        announce('Code gegenereerd en gekopieerd');
+        meld('Code gegenereerd en gekopieerd');
       } else if (lbl) { lbl.textContent = 'Toon mijn code'; }
       return;
     }
     if (a === 'code-toepassen') {
       const ta = document.getElementById('overzet-code');
-      if (!ta || !ta.value.trim()) { announce('Plak eerst een code'); return; }
+      if (!ta || !ta.value.trim()) { meld('Plak eerst een code', { soort: 'fout' }); return; }
       try {
         const nieuw = S.opslag.decodeer(ta.value);
         if (!confirm('Huidige gegevens vervangen door de geplakte code?')) return;
+        const vorige = appState;
         appState = nieuw;
-        bewaar(); pasToeUiterlijk(); renderApp(); announce('Gegevens overgezet');
-      } catch (e) { announce('Ongeldige code'); }
+        bewaar(); pasToeUiterlijk(); renderApp();
+        meld('Gegevens overgezet', { herstel: () => { appState = vorige; pasToeUiterlijk(); renderApp(); } });
+      } catch (e) { meld('Ongeldige code', { soort: 'fout' }); }
       return;
     }
     // correcties (loonstrook) — geen dag-detail, eigen kleine overlay
@@ -280,18 +317,23 @@
       const urenEl = document.getElementById('correctie-uren');
       const notitieEl = document.getElementById('correctie-notitie');
       const uren = parseFloat(String((urenEl && urenEl.value) || '').replace(',', '.'));
-      if (!urenEl || isNaN(uren) || uren === 0) { announce('Vul een geldig aantal uren in'); return; }
+      if (!urenEl || isNaN(uren) || uren === 0) { meld('Vul een geldig aantal uren in', { soort: 'fout' }); return; }
       const maandKey = `${zicht.jaar}-${String(zicht.maand).padStart(2, '0')}`;
       const arr = appState.correcties[maandKey] || (appState.correcties[maandKey] = []);
       arr.push({ id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), uren, notitie: ((notitieEl && notitieEl.value) || '').trim() });
-      bewaar(); announce('Correctie toegevoegd'); closeOverlay();
+      bewaar(); meld('Correctie toegevoegd'); closeOverlay();
       return;
     }
     if (a === 'correctie-del') {
       const maandKey = `${zicht.jaar}-${String(zicht.maand).padStart(2, '0')}`;
       const arr = appState.correcties[maandKey];
-      if (arr) { const idx = arr.findIndex(c => c.id === el.dataset.id); if (idx >= 0) arr.splice(idx, 1); }
-      bewaar(); renderContent(); return;
+      const idx = arr ? arr.findIndex(c => c.id === el.dataset.id) : -1;
+      if (idx < 0) return;
+      const [verwijderd] = arr.splice(idx, 1);
+      bewaar();
+      meld('Verwijderd', { herstel: () => { arr.splice(idx, 0, verwijderd); } });
+      renderContent();
+      return;
     }
     // dag-detail
     if (bewerk) {
@@ -319,22 +361,29 @@
       if (a === 'opslaan') {
         syncNotitie();
         if (S.util.parseTime(bewerk.tot) <= S.util.parseTime(bewerk.van)) return;
-        const dagData = { van: bewerk.van, tot: bewerk.tot, locatie: bewerk.locatie, notitie: bewerk.notitie };
-        if (bewerk.extra && bewerk.extra.length) dagData.extra = bewerk.extra.filter(e => S.util.parseTime(e.tot) > S.util.parseTime(e.van));
-        if (bewerk.zondagToeslag != null && bewerk.zondagToeslag !== !!appState.instellingen.zondagToeslag) dagData.zondagToeslag = bewerk.zondagToeslag;
+        const dagData = dagDataUitBewerk();
         if (bewerk.loonmaand) dagData.loonmaand = bewerk.loonmaand;
         appState.dagen[bewerk.iso] = dagData;
-        bewaar(); announce('Opgeslagen'); closeOverlay(); return;
+        bewaar(); meld('Opgeslagen'); closeOverlay(); return;
       }
-      if (a === 'verwijderen') { syncNotitie(); if (confirm('Deze dag verwijderen?')) { delete appState.dagen[bewerk.iso]; bewaar(); announce('Verwijderd'); closeOverlay(); } return; }
-      if (a === 'dag-kopieer') {
-        const bron = appState.dagen[bewerk.iso];
-        if (!bron) return;
-        const data = { ...bron };
-        delete data.loonmaand; // hoort bij de brondatum, geen betekenis op een andere dag
-        klembord = { iso: bewerk.iso, data };
-        announce(`Gekopieerd van ${S.util.dagDatum(new Date(bewerk.iso + 'T00:00:00'))}`);
+      if (a === 'verwijderen') {
+        syncNotitie();
+        const iso = bewerk.iso;
+        const vorige = appState.dagen[iso];
+        delete appState.dagen[iso];
+        bewaar();
+        meld('Verwijderd', { herstel: () => { appState.dagen[iso] = vorige; } });
         closeOverlay();
+        return;
+      }
+      if (a === 'dag-kopieer') {
+        // Kopieert uit de lopende bewerking (niet de opgeslagen dag): zo gaat een net getypte
+        // wijziging niet verloren wanneer je meteen op "Kopieer dag" drukt in plaats van op "Opslaan".
+        syncNotitie();
+        klembord = { iso: bewerk.iso, data: dagDataUitBewerk() };
+        meld(`Gekopieerd van ${S.util.dagDatum(new Date(bewerk.iso + 'T00:00:00'))}`);
+        closeOverlay();
+        renderApp();
         return;
       }
     }
@@ -350,8 +399,16 @@
   });
   document.addEventListener('change', e => {
     const t = e.target;
-    if (t.id === 'set-uurloon') { const v = parseFloat(String(t.value).replace(',', '.')); if (!isNaN(v)) { appState.instellingen.uurloon = v; bewaar(); renderContent(); } return; }
-    if (t.id === 'set-reis') { const v = parseFloat(String(t.value).replace(',', '.')); if (!isNaN(v)) { appState.instellingen.reiskostenPerKantoordag = v; bewaar(); renderContent(); } return; }
+    if (t.id === 'set-uurloon') {
+      const v = parseFloat(String(t.value).replace(',', '.'));
+      if (isNaN(v) || v < 0) { t.value = String(appState.instellingen.uurloon); meld('Vul een bedrag in, bijv. 15,50', { soort: 'fout' }); return; }
+      appState.instellingen.uurloon = v; bewaar(); return;
+    }
+    if (t.id === 'set-reis') {
+      const v = parseFloat(String(t.value).replace(',', '.'));
+      if (isNaN(v) || v < 0) { t.value = String(appState.instellingen.reiskostenPerKantoordag); meld('Vul een bedrag in, bijv. 15,50', { soort: 'fout' }); return; }
+      appState.instellingen.reiskostenPerKantoordag = v; bewaar(); return;
+    }
     if (t.id && t.id.startsWith('uk-')) { (appState.instellingen.urenkaart = appState.instellingen.urenkaart || {})[t.id.slice(3)] = t.value; bewaar(); return; }
     if (t.dataset && t.dataset.action === 'accent-custom') { appState.instellingen.accent = t.value; bewaar(); pasToeUiterlijk(); renderContent(); return; }
     if (t.dataset && t.dataset.action === 'thema-kleur') {
@@ -366,7 +423,7 @@
     const blob = new Blob([S.opslag.exporteer(appState)], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
     a.href = url; a.download = 'salaris-backup' + (profiel ? '-' + profiel : '') + '.json'; a.click(); URL.revokeObjectURL(url);
-    announce('Back-up geëxporteerd');
+    meld('Back-up geëxporteerd');
   }
   function genereerUrenkaart() {
     const namen = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
@@ -375,13 +432,22 @@
     const blob = new Blob([S.excel.bouwXlsx(model)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
     a.href = url; a.download = `urenkaart-${namen[m - 1]}-${j}.xlsx`; a.click(); URL.revokeObjectURL(url);
-    announce('Urenkaart-Excel gegenereerd');
+    meld('Urenkaart-Excel gegenereerd');
   }
   function importData() {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json';
     inp.onchange = () => {
-      const f = inp.files[0]; if (!f) return; const r = new FileReader();
-      r.onload = () => { try { appState = S.opslag.importeer(r.result); bewaar(); pasToeUiterlijk(); renderApp(); announce('Back-up geïmporteerd'); } catch { announce('Ongeldig back-upbestand'); } };
+      const f = inp.files[0]; if (!f) return;
+      if (!confirm('Deze back-up vervangt al je huidige gegevens. Doorgaan?')) return;
+      const r = new FileReader();
+      r.onload = () => {
+        const vorige = appState;
+        try {
+          appState = S.opslag.importeer(r.result);
+          bewaar(); pasToeUiterlijk(); renderApp();
+          meld('Back-up geïmporteerd', { herstel: () => { appState = vorige; pasToeUiterlijk(); renderApp(); } });
+        } catch { meld('Ongeldig back-upbestand', { soort: 'fout' }); }
+      };
       r.readAsText(f);
     };
     inp.click();
@@ -390,14 +456,13 @@
   ovlEl.addEventListener('click', e => { if (e.target === ovlEl && !profielKiezerVerplicht) closeOverlay(); });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (!ovlEl.classList.contains('hidden') && !profielKiezerVerplicht) { closeOverlay(); return; }
-    if (klembord) { klembord = null; renderContent(); }
+    if (klembord) { klembord = null; renderApp(); }
   });
   window.addEventListener('online', () => syncPull(profiel));
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncPull(profiel); });
   // Constant synchroon houden: pull elke 30s zolang het tabblad zichtbaar is en er niets openstaat
   // (wijzigingen van het andere apparaat komen vanzelf binnen; een open editor niet wegtrekken).
-  setInterval(() => { if (document.visibilityState === 'visible' && ovlEl.classList.contains('hidden')) syncPull(profiel); }, 30000);
+  setInterval(() => { if (document.visibilityState === 'visible' && !ovlEl.open) syncPull(profiel); }, 30000);
 
   // ---- drag & drop werkuren tussen kalenderdagen ----
   let dragSrcIso = null;
@@ -425,17 +490,23 @@
     e.preventDefault();
     const targetEl = e.target.closest('[data-action="dag"]');
     if (!targetEl || !dragSrcIso) return;
+    const srcIso = dragSrcIso;
     const targetIso = targetEl.dataset.iso;
-    if (targetIso === dragSrcIso || targetEl.classList.contains('holi')) return;
-    const srcData = appState.dagen[dragSrcIso];
+    if (targetIso === srcIso || targetEl.classList.contains('holi')) return;
+    const srcData = appState.dagen[srcIso];
     if (!srcData) return;
-    if (appState.dagen[targetIso] && !confirm(`Werkdata van ${targetIso} overschrijven met die van ${dragSrcIso}?`)) return;
+    const vorigeSrc = srcData, vorigeTarget = appState.dagen[targetIso];
     const nieuweData = { ...srcData };
     delete nieuweData.loonmaand; // "aangrenzende loonmaand" was relatief aan de oude datum, klopt niet meer na verplaatsen
     appState.dagen[targetIso] = nieuweData;
-    delete appState.dagen[dragSrcIso];
+    delete appState.dagen[srcIso];
     bewaar();
-    announce(`Uren verplaatst naar ${targetIso}`);
+    meld(`Uren verplaatst naar ${targetIso}`, {
+      herstel: () => {
+        appState.dagen[srcIso] = vorigeSrc;
+        if (vorigeTarget) appState.dagen[targetIso] = vorigeTarget; else delete appState.dagen[targetIso];
+      },
+    });
     renderContent();
   });
 
@@ -476,7 +547,7 @@
   if (!profiel) openProfielKiezer(true); else naProfiel();
   let laatsteProgStatus = null;
   setInterval(() => {
-    if (!ovlEl.classList.contains('hidden')) { patchVoortgang(); return; }
+    if (ovlEl.open) { patchVoortgang(); return; }
     if (pagina !== 'overzicht') return;
     const vd = appState.dagen[S.util.isoDate(new Date())];
     const status = vd ? S.uren.voortgang(vd.van, vd.tot, nuMin()).status : null;
