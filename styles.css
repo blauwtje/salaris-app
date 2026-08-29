@@ -1,5 +1,5 @@
-/* === Salaris — soft-flat, theming via tokens ============================= */
-/* Fonts: lokaal gesubset (latin) in fonts/ — variabele woff2, werkt offline.  */
+/* === Salaris - soft-flat, theming via tokens ============================= */
+/* Fonts: lokaal gesubset (latin) in fonts/ - variabele woff2, werkt offline.  */
 @font-face{font-family:'Outfit';font-style:normal;font-weight:700 800;font-display:swap;src:url('fonts/outfit.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
 @font-face{font-family:'Inter';font-style:normal;font-weight:400 800;font-display:swap;src:url('fonts/inter.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
 
@@ -12,7 +12,11 @@
   --accent-soft:color-mix(in srgb, var(--accent) 13%, transparent);
   --accent-soft2:color-mix(in srgb, var(--accent) 22%, transparent);
   --verdiend:var(--accent); --verdiend-soft:color-mix(in srgb, var(--verdiend) 14%, transparent);
-  --sun:#B26B00; --suntint:color-mix(in srgb, #F59E0B 14%, transparent);
+  /* Accent en verdiend zijn afgestemd op vlakken en grote cijfers. Kleine tekst heeft een
+     donkerder (licht thema) of lichtere (donker thema) variant nodig om 4,5:1 te halen. */
+  --accent-tekst:color-mix(in srgb, var(--accent) 86%, #000);
+  --verdiend-tekst:color-mix(in srgb, var(--verdiend) 86%, #000);
+  --sun:#B26B00; --sun-ink:#7A4B00; --suntint:color-mix(in srgb, #F59E0B 14%, transparent);
   --danger:#DC3A45; --weekend:color-mix(in srgb, var(--text) 3.5%, transparent);
   --disabledInk:#9098A8;
   --shadow:0 1px 2px rgba(20,26,42,.05), 0 6px 18px rgba(20,26,42,.07);
@@ -30,7 +34,7 @@
   --t:.18s cubic-bezier(.2,.7,.3,1);
   color-scheme:light;
 }
-/* ---------- tokens: custom (aangepast — light als basis, bg+kaart via overrides) ---------- */
+/* ---------- tokens: custom (aangepast - light als basis, bg+kaart via overrides) ---------- */
 html[data-theme="custom"]{
   --bg:#EEF1F6; --surf:#FFFFFF; --surf2:#F3F5FA; --surf3:#E9EDF4;
   --text:#19202E; --muted:#586074; --faint:#929BAD;
@@ -44,7 +48,9 @@ html[data-theme="dark"]{
   --border:rgba(255,255,255,.09); --border-2:rgba(255,255,255,.16);
   --accent-ink:#FFFFFF;
   --verdiend:var(--accent); --verdiend-soft:color-mix(in srgb, var(--verdiend) 18%, transparent);
-  --sun:#F0B254; --suntint:color-mix(in srgb, #F59E0B 20%, transparent);
+  --accent-tekst:color-mix(in srgb, var(--accent) 62%, #fff);
+  --verdiend-tekst:color-mix(in srgb, var(--verdiend) 62%, #fff);
+  --sun:#F0B254; --sun-ink:#F5C26B; --suntint:color-mix(in srgb, #F59E0B 20%, transparent);
   --danger:#FF6166; --weekend:rgba(255,255,255,.03);
   --disabledInk:#727A8C;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.36);
@@ -61,7 +67,9 @@ html[data-theme="black"]{
   --border:rgba(255,255,255,.11); --border-2:rgba(255,255,255,.2);
   --accent-ink:#FFFFFF;
   --verdiend:var(--accent); --verdiend-soft:color-mix(in srgb, var(--verdiend) 18%, transparent);
-  --sun:#F0B254; --suntint:color-mix(in srgb, #F59E0B 20%, transparent);
+  --accent-tekst:color-mix(in srgb, var(--accent) 62%, #fff);
+  --verdiend-tekst:color-mix(in srgb, var(--verdiend) 62%, #fff);
+  --sun:#F0B254; --sun-ink:#F5C26B; --suntint:color-mix(in srgb, #F59E0B 20%, transparent);
   --danger:#FF6166; --weekend:rgba(255,255,255,.025);
   --disabledInk:#6A7184;
   --shadow:0 1px 2px rgba(0,0,0,.7), 0 8px 26px rgba(0,0,0,.7);
@@ -74,7 +82,10 @@ html[data-theme="black"]{
 *{ box-sizing:border-box; margin:0; padding:0; }
 html,body{ min-height:100%; }
 body{ font-family:var(--body); color:var(--text); background:var(--bg); line-height:1.5; -webkit-font-smoothing:antialiased; height:100vh; overflow:hidden; transition:background var(--t), color var(--t); }
-button{ font-family:inherit; cursor:pointer; color:inherit; }
+button{ font-family:inherit; cursor:pointer; color:inherit; user-select:none; -webkit-user-select:none; }
+/* Knoppen zijn geen tekst: niet selecteerbaar. Slepen van kalenderdagen blijft werken (draggable + user-drag). */
+.ni, .seg button, .c, .dag-row, summary{ user-select:none; -webkit-user-select:none; }
+.c[draggable="true"]{ -webkit-user-drag:element; }
 :focus-visible{ outline:0; box-shadow:0 0 0 3px var(--accent-soft2), 0 0 0 1px var(--accent); }
 @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
 
@@ -112,123 +123,217 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .profiel-kaart .pf-naam{ font-family:var(--head); font-weight:700; font-size:1.05rem; }
 .profiel-kaart .pf-vink{ position:absolute; top:.6rem; right:.6rem; display:inline-flex; color:var(--accent); }
 .profiel-kaart .pf-vink svg{ width:18px; height:18px; stroke-width:2.5; }
-#sync-pass{ width:100%; }
 
 /* ---------- content + paginakop ---------- */
 .content{ flex:1; min-width:0; padding:1.6rem 1.9rem; display:flex; flex-direction:column; gap:1.2rem; overflow:hidden; }
-.paginakop{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap; animation:fade-in .15s ease-out both; }
+.paginakop{ display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
 .paginakop h2{ font-family:var(--head); font-weight:800; font-size:1.65rem; letter-spacing:-.02em; }
 .paginakop .spacer{ flex:1; }
 
-/* ---------- overzicht ---------- */
+/* ---------- overzicht: widgetraster ---------- */
+/* De kop is de begroeting: wie je bent en hoe je er vandaag voor staat, in één regel. */
+.paginakop.begroet{ align-items:flex-start; }
+.bg-tekst{ min-width:0; }
+.bg-sub{ margin:.25rem 0 0; font-size:.9rem; color:var(--muted); line-height:1.45; }
+.bg-sub b{ color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; }
 
-/* widget-raster (aanpasbaar zoals Apple-widgets) */
-.ov-grid{ flex:1; min-height:0; overflow:auto; display:grid; grid-template-columns:repeat(3,1fr); grid-auto-flow:row dense; gap:1.15rem; align-content:start; }
-.ov-w{ min-width:0; animation:fade-up .2s ease-out both; }
-.ov-w.groot{ grid-column:span 2; }
-.ov-w > .card{ height:100%; }
-.ov-hint{ font-size:.8rem; color:var(--muted); background:var(--surf2); border:1px solid var(--border); border-radius:var(--r-input); padding:.55rem .8rem; }
-.ov-grid.bewerk .ov-w{ cursor:grab; border:1.5px dashed var(--border-2); border-radius:18px; padding:.45rem; background:var(--surf2); position:relative; }
+/* Vier kolommen met een vaste rijhoogte. Daardoor betekent een maat overal hetzelfde:
+   klein = 1x1, breed = 2x1, groot = 2x2. Precies zoals widgets op een beginscherm. */
+.ov-scroll{ flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:1.15rem; }
+/* Geen `dense`: die vult een gat op met een widget van verderop, waardoor er iets anders op de
+   plek sprong van de widget die je net kleiner maakte. Volgorde blijft nu altijd je volgorde. */
+.ov-grid{ display:grid; grid-template-columns:repeat(6,1fr); grid-auto-rows:146px;
+  grid-auto-flow:row; gap:1.15rem; align-content:start; }
+.ov-w{ position:relative; min-width:0; grid-column:span 1; grid-row:span 1; }
+.ov-w.maat-breed{ grid-column:span 2; }
+.ov-w.maat-groot{ grid-column:span 2; grid-row:span 2; }
+.ov-inhoud{ height:100%; }
+.ov-inhoud > *{ height:100%; width:100%; }
+
+/* De widget zelf: één doos, dezelfde als `.card` maar met een vaste hoogte en eigen indeling. */
+.wg{ display:flex; flex-direction:column; overflow:hidden; text-align:left; font:inherit; color:inherit;
+  background:var(--surf); border:1px solid var(--border); border-radius:var(--r-card);
+  box-shadow:var(--shadow-sm); padding:1rem 1.1rem;
+  transition:transform var(--t), box-shadow var(--t), border-color var(--t); }
+.wg.maat-groot{ padding:1.15rem 1.25rem; }
+.wg.klikbaar{ cursor:pointer; user-select:none; }
+.wg.klikbaar:active{ transform:translateY(0); }
+.wg-kop{ display:flex; align-items:center; gap:.5rem; flex-shrink:0; }
+.wg-ic{ display:grid; place-items:center; width:26px; height:26px; border-radius:8px;
+  background:var(--surf2); color:var(--muted); flex-shrink:0; }
+.wg-ic svg{ width:14px; height:14px; stroke-width:2; }
+.wg-l{ font:600 var(--fs-xs) var(--body); letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wg-x{ text-transform:none; letter-spacing:0; font-weight:500; color:var(--faint); }
+.wg-kop .live, .wg-kop .tempo, .wg-kop .loc-ic{ margin-left:auto; flex-shrink:0; }
+.wg-v{ margin-top:.6rem; font:700 2.1rem/1.05 var(--head); letter-spacing:-.025em; font-variant-numeric:tabular-nums; }
+.wg.maat-klein .wg-v{ margin-top:auto; }
+.wg-v small{ font-size:1rem; color:var(--muted); font-weight:600; margin-left:.15rem; }
+.wg-v.klein{ font-size:1.15rem; line-height:1.2; }
+.wg-s{ margin-top:.25rem; font-size:.8rem; color:var(--verdiend-tekst); font-weight:600;
+  font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wg.accent .wg-ic{ background:var(--accent-soft); color:var(--accent-tekst); }
+.wg.maat-klein .wg-v{ font-size:1.75rem; }
+
+/* Werkdag vandaag */
+.wg.vandaag.aan{ border-color:color-mix(in srgb,var(--accent) 35%,var(--border)); }
+.wg.vandaag .teller{ display:flex; align-items:baseline; gap:.4rem; margin-top:.6rem;
+  font:800 2.1rem/1.05 var(--head); letter-spacing:-.03em; color:var(--verdiend); font-variant-numeric:tabular-nums; }
+.wg.vandaag.maat-klein .teller{ margin-top:auto; }
+.wg.vandaag.maat-klein .teller{ font-size:1.6rem; }
+.wg.vandaag .teller small{ font:600 .78rem var(--body); color:var(--muted); letter-spacing:0; }
+.wg.vandaag .track{ margin:.6rem 0 0; flex-shrink:0; }
+.wg.vandaag.maat-klein .track{ height:8px; }
+.wg.vandaag .prog-meta{ margin-top:.45rem; }
+.wg.vandaag.leeg .leeg-tekst{ margin:.55rem 0; }
+.wg.vandaag.leeg .btn{ margin-top:auto; align-self:flex-start; }
+.wg.vandaag.leeg .wg-s{ margin-top:auto; color:var(--muted); }
+.teller-doel{ margin-top:auto; padding-top:.55rem; border-top:1px solid var(--border); font-size:.78rem; color:var(--muted); }
+.teller-doel b{ color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; }
+.dag-blokken{ display:flex; flex-direction:column; margin-top:.7rem; min-height:0; overflow:hidden; }
+.dag-blokken .db{ display:grid; grid-template-columns:auto 1fr auto; gap:.6rem; align-items:center;
+  padding:.36rem 0; font-size:.82rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+.dag-blokken .db + .db{ border-top:1px solid var(--border); }
+.dag-blokken .db-t{ color:var(--text); font-weight:600; }
+.dag-blokken .db-w{ display:inline-flex; align-items:center; gap:.35rem; }
+.dag-blokken .db.nu .db-t{ color:var(--accent-tekst); }
+
+/* Je ritme */
+.wg.ritme .reeks{ display:flex; align-items:center; gap:.6rem; margin-top:.5rem; }
+.wg.salaris .bd.plain .row{ padding:.28rem 0; }
+.wg.ritme .reeks-n{ font:800 2.6rem/1 var(--head); letter-spacing:-.04em; color:var(--muted); font-variant-numeric:tabular-nums; }
+.wg.ritme.maat-klein .reeks-n{ margin-top:auto; font-size:2.6rem; }
+.wg.ritme .reeks-l{ font:700 .8rem/1.15 var(--body); color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.wg.ritme.brandt .reeks-n{ color:var(--sun); }
+.wg.ritme.brandt .wg-ic{ background:var(--suntint); color:var(--sun); }
+.ritme-strook{ display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:4px; margin-top:.75rem;
+  flex:1; min-height:34px; max-height:104px; }
+.rs{ display:flex; flex-direction:column; align-items:stretch; gap:.25rem; min-width:0; }
+.rs::before{ content:""; display:block; flex:1; min-height:22px; border-radius:6px;
+  background:var(--surf2); border:1px solid var(--border); }
+.rs b{ font:600 .6rem var(--body); color:var(--faint); text-align:center; font-style:normal; }
+.rs.vol::before{ background:linear-gradient(to top, var(--verdiend) var(--vul,60%), var(--surf2) var(--vul,60%));
+  border-color:color-mix(in srgb, var(--verdiend) 35%, var(--border)); }
+.rs.rust::before{ background:repeating-linear-gradient(135deg, var(--surf2), var(--surf2) 4px, var(--surf3) 4px, var(--surf3) 8px); }
+.rs.gat::before{ background:transparent; border-style:dashed; border-color:var(--border-2); }
+.rs.nu::before{ box-shadow:0 0 0 2px var(--accent); }
+.rs.nu b{ color:var(--accent-tekst); font-weight:800; }
+.ritme-voet{ display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap;
+  margin-top:.8rem; padding-top:.7rem; border-top:1px solid var(--border); font-size:.83rem; color:var(--muted); }
+.ritme-voet b{ color:var(--text); font-weight:700; }
+.tempo{ display:inline-flex; align-items:center; gap:.3rem; padding:.26rem .55rem; border-radius:99px;
+  font-size:.74rem; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.tempo svg{ width:12px; height:12px; stroke-width:2.4; }
+.tempo.voor{ color:var(--verdiend-tekst); background:var(--verdiend-soft); }
+.tempo.achter{ color:var(--muted); background:var(--surf3); }
+
+/* Salaris deze periode */
+.wg.salaris .sk-bedrag{ display:flex; align-items:baseline; gap:.4rem; margin-top:.6rem;
+  font:800 2.1rem/1.05 var(--head); letter-spacing:-.03em; color:var(--verdiend); font-variant-numeric:tabular-nums; }
+.wg.salaris.maat-klein .sk-bedrag{ margin-top:auto; font-size:1.6rem; }
+.wg.salaris .sk-bedrag small{ font:600 .8rem var(--body); color:var(--muted); letter-spacing:0; }
+.wg.salaris .bd.plain{ padding-top:.7rem; margin-top:.5rem; border-top:1px solid var(--border); }
+.wg .up{ margin-top:auto; }
+
+/* ---------- bewerkmodus ---------- */
+/* Eén balk onderin de widget in plaats van badges die aan de hoeken hangen: die vielen buiten
+   de scrollende inhoud en werden half afgeknipt. Alles wat je met een widget kunt doet staat
+   nu op één plek, altijd volledig zichtbaar, op elk apparaat hetzelfde. */
+.ov-grid.bewerk .ov-w{ cursor:grab; overflow:hidden; border-radius:var(--r-card); }
 .ov-grid.bewerk .ov-w:active{ cursor:grabbing; }
-.ov-w.dragging{ opacity:.4; }
-.ov-w.drag-over{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
-.ov-w.ov-uit .ov-prev{ opacity:.4; }
-.ov-grid.bewerk .ov-prev{ pointer-events:none; }
-.ov-ctrls{ display:flex; align-items:center; gap:.5rem; padding:.15rem .35rem .5rem; }
-.ov-drag{ color:var(--faint); font-weight:800; letter-spacing:-3px; cursor:grab; }
-.ov-wlabel{ font-size:.8rem; font-weight:700; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ov-cbtn{ font-size:.72rem; font-weight:700; padding:.28rem .55rem; border:1px solid var(--border-2); border-radius:8px; background:var(--surf); color:var(--muted); transition:border-color var(--t),color var(--t); }
-.ov-cbtn:hover{ border-color:var(--accent); color:var(--accent); }
+.ov-grid.bewerk .ov-inhoud{ pointer-events:none; }
+.ov-grid.bewerk .wg{ border-style:dashed; border-color:var(--border-2); }
+.ov-w.dragging{ opacity:.35; }
+.ov-w.drag-over .wg{ border-style:solid; border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+
+/* Bedieningslaag over de tegel: naam, weggooien, grootte en plek. Alles zichtbaar, alles
+   minstens 44px, en elke actie is één klik. Geen paneel ertussen, geen icoontjes zonder woord. */
+.ov-edit{ position:absolute; inset:0; z-index:3; display:grid; align-content:center; justify-items:center;
+  gap:.5rem; padding:2.6rem .4rem; border-radius:var(--r-card);
+  background:color-mix(in srgb, var(--surf) 82%, transparent); backdrop-filter:blur(2px); }
+.ov-naam{ position:absolute; top:.55rem; left:.7rem; right:3rem; font:700 .78rem var(--body);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ov-weg{ position:absolute; top:.35rem; right:.35rem; display:grid; place-items:center; width:44px; height:44px;
+  border:0; border-radius:12px; background:transparent; color:var(--danger); transition:background var(--t); }
+.ov-weg svg{ width:19px; height:19px; stroke-width:2; }
+.ov-weg:active{ background:var(--danger-soft); }
+.ov-maten{ display:flex; gap:.3rem; }
+.maat-btn{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.15rem;
+  min-width:52px; min-height:54px; padding:.4rem .25rem; border:1.5px solid var(--border-2); border-radius:12px;
+  background:var(--surf2); color:var(--muted); font:inherit; transition:border-color var(--t), background var(--t), color var(--t); }
+.maat-vorm{ display:grid; place-items:center; height:18px; }
+.maat-vorm svg{ width:18px; height:18px; }
+.maat-naam{ font:700 .64rem var(--body); letter-spacing:.01em; }
+.maat-btn.on{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent-tekst); }
+/* Pijlen in de onderhoeken, niet aan de zijkanten: op een kleine widget bleef er anders geen
+   breedte over voor de drie maatknoppen en viel "Groot" buiten de tegel. */
+.ov-plek{ position:absolute; bottom:.25rem; display:grid; place-items:center;
+  width:46px; height:40px; border:0; border-radius:12px; background:transparent; color:var(--muted);
+  transition:background var(--t), color var(--t); }
+.ov-plek.links{ left:.25rem; } .ov-plek.rechts{ right:.25rem; }
+.ov-plek svg{ width:20px; height:20px; stroke-width:2.4; }
+.ov-plek:active{ background:var(--surf3); color:var(--text); }
+.ov-hint{ font-size:.8rem; color:var(--muted); background:var(--surf2); border:1px solid var(--border);
+  border-radius:var(--r-input); padding:.55rem .8rem; }
+.ov-hint b{ color:var(--text); }
+
+/* Zacht wiebelen zolang je aan het schikken bent: het zegt "je kunt me oppakken". Alleen de
+   inhoud beweegt; de balk ligt stil, anders zijn de knoppen niet te raken. */
+@keyframes wiebel{ 0%,100%{ transform:rotate(-.3deg); } 50%{ transform:rotate(.3deg); } }
+.ov-grid.bewerk .ov-inhoud{ animation:wiebel .5s ease-in-out infinite; transform-origin:center; }
+.ov-grid.bewerk .ov-w:nth-child(2n) .ov-inhoud{ animation-delay:-.16s; }
+.ov-grid.bewerk .ov-w:nth-child(3n) .ov-inhoud{ animation-delay:-.31s; }
+.ov-grid.bewerk .ov-w.dragging .ov-inhoud{ animation:none; }
+@media (prefers-reduced-motion:reduce){ .ov-grid.bewerk .ov-inhoud{ animation:none; } }
+
+/* De prullenbak verschijnt pas als je iets optilt: anders staat er een leeg vak in de weg. */
+.prullenbak{ display:none; align-items:center; justify-content:center; gap:.6rem; min-height:76px;
+  border:1.5px dashed var(--danger); border-radius:var(--r-card); color:var(--danger); font-size:.85rem; }
+.prullenbak svg{ width:18px; height:18px; stroke-width:2; }
+body.sleept-widget .prullenbak{ display:flex; }
+.prullenbak.over{ background:var(--danger-soft); border-style:solid; }
+.hint-muis{ display:inline; }
+@media (pointer:coarse){ .hint-muis{ display:none; } }
+.ov-leeg{ display:flex; flex-direction:column; align-items:flex-start; gap:.9rem; padding:2rem 0; color:var(--muted); }
+.ov-leeg p{ margin:0; max-width:38ch; line-height:1.5; }
+
+/* ---------- widgetgalerij ---------- */
+.gal-sheet{ max-width:560px; }
+.gal-grid{ display:flex; flex-direction:column; gap:.6rem; }
+.gal-item{ display:flex; align-items:center; gap:.9rem; width:100%; text-align:left; padding:.6rem;
+  border:1px solid var(--border); border-radius:var(--r-card); background:var(--surf2); color:inherit; font:inherit;
+  transition:border-color var(--t), background var(--t); }
+.gal-prev{ width:104px; height:104px; flex-shrink:0; pointer-events:none; }
+.gal-prev .wg{ height:100%; padding:.7rem .75rem; box-shadow:none; }
+.gal-prev .wg-v, .gal-prev .teller, .gal-prev .sk-bedrag{ font-size:1.15rem; }
+.gal-prev .wg-v.klein{ font-size:.9rem; }
+.gal-prev .reeks-n{ font-size:1.7rem; }
+/* Op 104px past een label toch niet; het icoon en het getal vertellen genoeg. */
+.gal-prev .wg-l, .gal-prev .wg-s{ display:none; }
+.gal-tekst{ display:flex; flex-direction:column; gap:.2rem; min-width:0; flex:1; }
+.gal-tekst b{ font-size:.95rem; font-weight:700; }
+.gal-tekst span{ font-size:.82rem; color:var(--muted); line-height:1.4; }
+.gal-plus{ display:grid; place-items:center; width:34px; height:34px; border-radius:50%; flex-shrink:0;
+  background:var(--accent); color:var(--accent-ink); }
+.gal-plus svg{ width:17px; height:17px; stroke-width:2.4; }
 /* ---------- kalender-pagina ---------- */
 .klembord-banner{ display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap; margin-bottom:.9rem; padding:.6rem .9rem; border:1.5px solid var(--accent); border-radius:var(--r-input); background:var(--accent-soft); color:var(--text); font-size:.85rem; }
 .klembord-banner .btn{ min-height:34px; padding:0 .8rem; font-size:.82rem; }
 .kal-wrap{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 260px; gap:1.2rem; }
-.kal-wrap .calcard{ min-height:0; display:flex; flex-direction:column; }
-.kal-wrap .cal{ flex:1; min-height:0; grid-auto-rows:minmax(74px,1fr); }
+.kal-wrap .calcard{ min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+/* De hele maand past altijd: de zes rijen verdelen de beschikbare hoogte onder elkaar in plaats
+   van te scrollen. De cel klipt wat niet past; hoe korter de rij, hoe compacter de celinhoud
+   (zie de blokken hieronder). De marge/padding geeft de hover-lift ruimte. */
+.kal-wrap .cal{ flex:1; min-height:0; overflow:hidden; grid-auto-rows:minmax(0,1fr); padding:3px; margin:-3px; }
+.kal-wrap .c{ min-height:0; }
 .kal-rail{ display:flex; flex-direction:column; gap:1.2rem; min-height:0; overflow:auto; }
 .nav-btn{ width:40px; height:40px; border:1px solid var(--border); border-radius:var(--r-btn); background:var(--surf2); color:var(--muted); display:grid; place-items:center; transition:background var(--t), color var(--t); }
 .nav-btn:hover{ background:var(--surf3); color:var(--text); }
 .nav-btn svg{ width:18px; height:18px; stroke-width:2.4; }
 
-.loon-wrap{ flex:1; min-height:0; overflow:auto; display:grid; grid-template-columns:380px 1fr; gap:1.2rem; align-items:start; }
-.loon-main{ display:flex; flex-direction:column; gap:1rem; }
+.loon-wrap{ flex:1; min-height:0; overflow:auto; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:1.2rem; align-items:start; }
+.loon-main, .loon-side{ display:flex; flex-direction:column; gap:1.2rem; min-width:0; }
 .set-wrap{ flex:1; min-height:0; overflow:auto; padding-right:.3rem; }
-/* ---------- responsive (drie breekpunten: 1100 half scherm, 720 telefoon, 520 smalle telefoon) ---------- */
-/* max-width:1100px — half scherm: iconenrail i.p.v. volle zijbalk, twee-koloms layouts naar één kolom. */
-@media (max-width:1100px){
-  .sb{ width:64px; padding:var(--sp-4) var(--sp-2); align-items:center; }
-  .brand{ justify-content:center; gap:0; margin-bottom:var(--sp-4); }
-  .brand-txt, .ni-label{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
-  .ni{ width:44px; height:44px; padding:0; justify-content:center; }
-  .sb-foot{ display:none; }
-  .sb-profiel{ justify-content:center; padding:.5rem; min-width:44px; gap:0; }
-  .sb-profiel .pf-naam, .sb-profiel .pf-chev{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
-  .content{ overflow:auto; }
-  .kal-wrap{ grid-template-columns:1fr; }
-  .kal-wrap .cal{ grid-auto-rows:auto; }
-  .kal-wrap .c{ min-height:80px; }
-  .kal-rail{ overflow:visible; }
-  .loon-wrap{ grid-template-columns:1fr; }
-  .ov-grid{ grid-template-columns:repeat(2,1fr); }
-  .set-sections{ grid-template-columns:1fr; }
-  .set-grid{ grid-template-columns:1fr; }
-  .theme-grid{ grid-template-columns:repeat(2,1fr); }
-}
-/* max-width:720px — telefoon: zijbalk wordt een vaste onderbalk, overlays worden bottom-sheets. */
-@media (max-width:720px){
-  body{ height:auto; overflow:auto; overscroll-behavior-y:contain; }
-  #app.shell{ flex-direction:column; height:auto; }
-  .sb{ position:fixed; inset:auto 0 0 0; width:auto; height:auto; flex-direction:row; justify-content:space-around; align-items:center;
-       border-right:0; border-top:1px solid var(--border); z-index:50;
-       padding:.4rem calc(.6rem + env(safe-area-inset-right)) calc(.4rem + env(safe-area-inset-bottom)) calc(.6rem + env(safe-area-inset-left)); }
-  .brand{ display:none; }
-  .sb .nav{ display:contents; }
-  .sb-profiel{ margin:0; }
-  .content{ overflow:visible; padding:1.1rem;
-            padding-left:calc(1.1rem + env(safe-area-inset-left)); padding-right:calc(1.1rem + env(safe-area-inset-right));
-            padding-bottom:calc(4.2rem + env(safe-area-inset-bottom)); }
-  .meld-host{ bottom:calc(4.4rem + env(safe-area-inset-bottom)); }
-  .seg button{ min-height:44px; }
-  .note-input{ font-size:16px; }
-  .kal-wrap{ grid-template-columns:1fr; }
-  .kal-wrap .cal{ grid-auto-rows:auto; }
-  .kal-wrap .c{ min-height:64px; }
-  .set-grid2{ grid-template-columns:1fr; }
-  .nav-btn, .calhead .today-btn, .sh-head .x, .btn-icon, .ov-cbtn, .up-row.btn-row, .klembord-banner .btn, .leg-row{ min-height:44px; }
-  .sw, .sw-custom, .kl-reset{ width:44px; height:44px; }
-  input[type=color].swatch{ width:44px; height:44px; }
-  .ovl{ align-items:flex-end; padding:0; }
-  .sheet, .sheet.wide{ max-width:100%; width:100%; border-radius:20px 20px 0 0; max-height:94dvh;
-    padding:1.1rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom));
-    padding-left:calc(1.1rem + env(safe-area-inset-left)); padding-right:calc(1.1rem + env(safe-area-inset-right));
-    animation:sheet-up .26s cubic-bezier(.2,.8,.2,1); }
-  .sh-head{ position:sticky; top:0; z-index:2; background:var(--surf); padding-top:.15rem; margin-top:-.15rem; }
-  .sh-cols{ grid-template-columns:1fr; gap:0; }
-  .profiel-grid{ gap:.6rem; }
-  .actions{ flex-wrap:wrap; }
-  .dag-row{ display:grid; grid-template-columns:1fr auto auto auto; grid-template-areas:"dt dt dt bedrag" "tijd loc uren uren"; row-gap:.2rem; column-gap:.4rem; }
-  .dag-row .dr-dt{ grid-area:dt; }
-  .dag-row .dr-bedrag{ grid-area:bedrag; text-align:right; }
-  .dag-row .dr-tijd{ grid-area:tijd; }
-  .dag-row .dr-loc-t{ grid-area:loc; }
-  .dag-row .dr-uren{ grid-area:uren; text-align:right; }
-}
-@keyframes sheet-up{ from{ transform:translateY(100%); } to{ transform:none; } }
-/* max-width:520px — smalle telefoon: overzicht-raster en kalendercellen compact. */
-@media (max-width:520px){
-  .ov-grid{ grid-template-columns:1fr; }
-  .ov-w.groot{ grid-column:span 1; }
-  .cal{ gap:4px; }
-  .c{ min-height:58px; }
-  .c-top{ padding:0 4px; }
-  .c .num{ font-size:.82rem; }
-  .c-work{ padding:2px 3px 0; }
-  .c-work .u{ font-size:.58rem; }
-  .c-work .e{ font:800 .7rem var(--body); letter-spacing:-.02em; }
-  .dow-lg{ display:none; }
-  .dow-sm{ display:inline; }
-  .c-special{ display:none; }
-}
 
 /* ---------- segmented pill ---------- */
 .seg{ display:inline-flex; background:var(--surf2); border:1px solid var(--border); border-radius:var(--r-input); padding:4px; gap:2px; }
@@ -240,7 +345,7 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 
 /* ---------- buttons ---------- */
 .btn{ display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:46px; padding:0 1.15rem; border:1px solid var(--border); border-radius:var(--r-btn); font:600 .92rem var(--body); background:var(--surf); color:var(--text); box-shadow:var(--shadow-sm); transition:transform var(--t), box-shadow var(--t), background var(--t); }
-.btn:hover{ transform:translateY(-1px); box-shadow:var(--shadow); background:var(--surf2); }
+
 .btn:active{ transform:translateY(0); box-shadow:var(--shadow-sm); }
 .btn svg{ width:18px; height:18px; stroke-width:2; }
 .btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:transparent; box-shadow:0 4px 14px var(--accent-soft2); }
@@ -248,6 +353,8 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .btn.danger{ color:var(--danger); border-color:color-mix(in srgb,var(--danger) 30%, transparent); background:transparent; box-shadow:none; }
 .btn.danger:hover{ background:color-mix(in srgb,var(--danger) 10%, transparent); }
 .btn.ghost{ background:transparent; box-shadow:none; }
+.btn:disabled{ opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+.btn .f{ font-weight:500; color:var(--faint); }
 
 /* ---------- cards ---------- */
 .card{ background:var(--surf); border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--shadow-sm); padding:1.15rem 1.25rem; }
@@ -255,32 +362,32 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .card .lab svg{ width:15px; height:15px; stroke:var(--muted); stroke-width:2; }
 .card .big{ font-family:var(--head); font-weight:700; font-size:1.8rem; line-height:1.1; margin-top:.5rem; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
 .card .big small{ font-size:.9rem; color:var(--muted); font-weight:600; }
-.card .sub{ font-size:.83rem; color:var(--verdiend); font-weight:600; margin-top:.2rem; font-variant-numeric:tabular-nums; }
+.card .sub{ font-size:.83rem; color:var(--verdiend-tekst); font-weight:600; margin-top:.2rem; font-variant-numeric:tabular-nums; }
 .card .sub.muted{ color:var(--muted); font-weight:500; }
 
 /* ---------- progress ---------- */
 .prog-top{ display:flex; align-items:center; justify-content:space-between; }
-.live{ display:inline-flex; align-items:center; gap:.4rem; font:600 var(--fs-xs) var(--body); color:var(--accent); text-transform:uppercase; letter-spacing:.05em; }
+.live{ display:inline-flex; align-items:center; gap:.4rem; font:600 var(--fs-xs) var(--body); color:var(--accent-tekst); text-transform:uppercase; letter-spacing:.05em; }
 .live .pd{ width:7px; height:7px; border-radius:50%; background:var(--accent); animation:pulse 1.6s ease-in-out infinite; }
 @keyframes pulse{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.45; transform:scale(.8);} }
 .track{ height:11px; border-radius:99px; background:var(--surf3); margin:.7rem 0 .5rem; overflow:hidden; }
-.fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, color-mix(in srgb,var(--accent) 75%,#fff 25%), var(--accent)); transition:width .5s cubic-bezier(.2,.7,.3,1); }
+.fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, color-mix(in srgb,var(--accent) 75%,#fff 25%), var(--accent)); }
 .prog-meta{ display:flex; justify-content:space-between; font-size:.8rem; color:var(--muted); font-variant-numeric:tabular-nums; }
 .prog-meta b{ color:var(--text); }
 
 /* ---------- upcoming ---------- */
 .up{ display:flex; flex-direction:column; gap:.5rem; margin-top:.6rem; }
-.up-row{ display:flex; align-items:center; gap:.65rem; font-size:.86rem; }
+.up-row{ display:flex; align-items:center; gap:.65rem; font-size:.85rem; }
 .up-row .ic{ width:32px; height:32px; border-radius:var(--r-input); display:grid; place-items:center; flex-shrink:0; }
 .up-row .ic svg{ width:16px; height:16px; stroke-width:2; }
-.up-row .ic.hr{ color:var(--accent); background:var(--accent-soft); } .up-row .ic.pay{ color:var(--verdiend); background:var(--verdiend-soft); }
+.up-row .ic.hr{ color:var(--accent-tekst); background:var(--accent-soft); } .up-row .ic.pay{ color:var(--verdiend-tekst); background:var(--verdiend-soft); }
 .up-row .d{ color:var(--muted); } .up-row b{ color:var(--text); }
 
 /* ---------- calendar ---------- */
 .calcard{ background:var(--surf); border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--shadow-sm); padding:1.3rem 1.3rem 1.4rem; }
 .calhead{ display:flex; align-items:center; gap:.7rem; margin-bottom:1rem; }
 .calhead h3{ font-family:var(--head); font-weight:700; font-size:1.3rem; letter-spacing:-.01em; }
-.calhead .today-btn{ margin-left:auto; min-height:40px; padding:0 1rem; border:1px solid var(--border); border-radius:var(--r-btn); background:var(--surf2); color:var(--accent); font:600 .82rem var(--body); transition:background var(--t); }
+.calhead .today-btn{ margin-left:auto; min-height:40px; padding:0 1rem; border:1px solid var(--border); border-radius:var(--r-btn); background:var(--surf2); color:var(--accent-tekst); font:600 .82rem var(--body); transition:background var(--t); }
 .calhead .today-btn:hover{ background:var(--surf3); }
 .dow{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:8px; }
 .dow b{ text-align:center; font:600 .76rem var(--body); color:var(--muted); text-transform:uppercase; letter-spacing:.04em; overflow:hidden; white-space:nowrap; }
@@ -288,8 +395,8 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .dow b.we{ color:var(--faint); }
 .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
 .cal.plakmodus .c{ cursor:copy; outline:1px dashed var(--accent); outline-offset:-2px; }
-.c{ position:relative; min-height:74px; border-radius:var(--r-btn); background:var(--surf2); border:1px solid var(--border); display:flex; flex-direction:column; padding:6px 0 6px; overflow:hidden; transition:transform var(--t), box-shadow var(--t), border-color var(--t); font:inherit; color:inherit; text-align:left; width:100%; appearance:none; }
-.c:hover{ transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-2); z-index:3; }
+.c{ position:relative; min-height:84px; border-radius:var(--r-btn); background:var(--surf2); border:1px solid var(--border); display:flex; flex-direction:column; padding:6px 0 6px; overflow:hidden; transition:transform var(--t), box-shadow var(--t), border-color var(--t); font:inherit; color:inherit; text-align:left; width:100%; appearance:none; }
+
 .c-top{ display:flex; align-items:center; justify-content:space-between; padding:0 8px; }
 .c .num{ font:700 1.05rem var(--body); font-variant-numeric:tabular-nums; }
 .c .marks{ display:inline-flex; align-items:center; gap:4px; }
@@ -311,29 +418,22 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .c .lock{ width:13px; height:13px; stroke:var(--disabledInk); stroke-width:2.2; }
 .c .holi-naam{ font:600 var(--fs-xs) var(--body); color:var(--disabledInk); padding:0 8px; margin-top:3px; line-height:var(--lh-tight); overflow:hidden; }
 
-/* dag-markers (hr-deadline / salaris) */
+/* De 19e opent de volgende loonperiode: de bovenrand kleurt mee met het label eronder. */
+.c.start-periode{ border-top-color:var(--accent); }
 .mk{ display:inline-grid; place-items:center; }
-.mk.hr{ width:7px; height:7px; border-radius:50%; background:var(--accent); }
-.mk.pay{ width:17px; height:17px; border-radius:50%; background:var(--verdiend-soft); color:var(--verdiend); font:800 .62rem var(--body); }
-.mk.loc{ display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:5px; background:var(--surf3); font:700 var(--fs-xs) var(--body); color:var(--muted); letter-spacing:0; }
-.mk.toesl { background:var(--suntint); color:#7a4b00; font-size:var(--fs-xs); font-weight:700; padding:0 .25rem; border-radius:5px; }
-.mk.note { width:7px; height:7px; border-radius:50%; background:var(--note); flex-shrink:0; }
-.c.toeslagdag { box-shadow:inset 3px 0 0 var(--suntint); }
+.mk.note{ color:var(--note); }
+.mk.note svg{ width:14px; height:14px; stroke-width:2.1; display:block; }
+
+/* Waar je werkte: een getekend icoon dat overal hetzelfde betekent (cel, dagenlijst, dialoog). */
+.loc-ic{ display:inline-flex; align-items:center; gap:1px; color:var(--muted); flex-shrink:0; }
+.loc-ic svg{ width:13px; height:13px; stroke-width:2.1; display:block; }
+.loc-ic.gemengd svg:last-child{ margin-left:-1px; opacity:.85; }
 
 /* gewerkte uren + bedrag onderin */
-.c-work{ margin-top:auto; padding:4px 8px 0; line-height:1.15; }
-.c-work .u{ display:block; font:600 .78rem var(--body); color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
-.c-work .e{ display:block; font:800 .98rem var(--head); color:var(--verdiend); font-variant-numeric:tabular-nums; letter-spacing:-.02em; white-space:nowrap; }
-.c-work .verhuisd{ display:block; font:700 var(--fs-xs) var(--body); color:var(--muted); white-space:nowrap; }
-
-
-/* legenda */
-.legend{ display:flex; flex-wrap:wrap; gap:.55rem .9rem; margin-top:.7rem; font-size:.76rem; color:var(--muted); }
-.legend span{ display:inline-flex; align-items:center; gap:.4rem; }
-.leg-row{ display:inline-flex; align-items:center; gap:.4rem; cursor:pointer; }
-.leg-dot{ width:13px; height:13px; border-radius:5px; flex-shrink:0; }
-.leg-dot.circ{ border-radius:50%; }
-.leg-dot.note{ background:color-mix(in srgb, var(--note) 40%, var(--surf2)); }
+.c-work{ margin-top:auto; padding:4px 8px 0; line-height:1.15; min-width:0; }
+.c-work .u{ display:flex; align-items:center; gap:4px; font:600 .78rem var(--body); color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.c-work .e{ display:block; font:800 .98rem var(--head); color:var(--verdiend-tekst); font-variant-numeric:tabular-nums; letter-spacing:-.02em; white-space:nowrap; }
+.c-tsl{ font:700 .62rem var(--body); color:var(--sun-ink); background:var(--suntint); padding:0 .22rem; border-radius:4px; letter-spacing:0; }
 
 
 /* ---------- overlay + sheet ---------- */
@@ -342,12 +442,15 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 @keyframes ovl-in{ from{ opacity:0; } to{ opacity:1; } }
 .sheet{ width:100%; max-width:440px; max-height:calc(100dvh - 2rem); overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--surf); border:1px solid var(--border); border-radius:22px; box-shadow:var(--shadow-pop); padding:1.3rem 1.3rem 1.4rem; animation:sheet-in .22s cubic-bezier(.2,.8,.2,1); }
 @keyframes sheet-in{ from{ opacity:0; transform:translateY(14px) scale(.98); } to{ opacity:1; transform:none; } }
-.sheet.wide{ max-width:760px; }
+.sheet.dag-sheet{ max-width:880px; }
+/* Werkdag-dialoog: invullen links, wat het oplevert rechts (op de telefoon onder elkaar).
+   Breed blijven is het punt - een blok is één rij van van/tot/waar, niet drie regels onder elkaar. */
+.sh-cols{ display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,.8fr); gap:1.5rem; align-items:start; }
+.sh-col{ min-width:0; }
+.sh-col-resultaat{ position:sticky; top:0; display:flex; flex-direction:column; gap:1rem; }
+.sh-col > .sec:last-child{ margin-bottom:0; }
 .sheet .sh-prog:empty{ display:none; }
 .sheet .prog-card{ box-shadow:none; background:var(--surf2); margin-bottom:1.1rem; padding:.8rem .9rem; }
-.sh-cols{ display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; }
-.sh-col .sec:last-child{ margin-bottom:0; }
-.sh-col .note-input{ min-height:96px; }
 .sh-head{ display:flex; align-items:flex-start; gap:.7rem; margin-bottom:1.1rem; }
 .sh-head .t{ font-family:var(--head); font-weight:700; font-size:1.28rem; line-height:1.15; }
 .sh-head .chip{ display:inline-block; margin-top:.3rem; font:600 var(--fs-xs) var(--body); letter-spacing:.04em; text-transform:uppercase; color:var(--accent); background:var(--accent-soft); padding:.2rem .5rem; border-radius:99px; }
@@ -357,6 +460,7 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .sec{ margin-bottom:1.15rem; }
 .sec .lab{ font:600 var(--fs-xs) var(--body); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:.55rem; display:flex; align-items:center; gap:.5rem; }
 .sec .lab svg{ width:14px; height:14px; stroke-width:2; }
+.sec .hint{ font-size:.8rem; color:var(--muted); line-height:1.45; }
 
 /* ---------- breakdown ---------- */
 .bd{ background:var(--surf2); border:1px solid var(--border); border-radius:var(--r-input); padding:.95rem 1rem; }
@@ -377,7 +481,12 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 .note-input{ width:100%; min-height:64px; border-radius:var(--r-input); background:var(--surf2); border:1px solid var(--border); resize:vertical; padding:.7rem .85rem; font:500 .92rem var(--body); color:var(--text); transition:border-color var(--t); }
 .note-input:focus{ outline:0; border-color:var(--accent); }
 .note-input::placeholder{ color:var(--faint); }
-.actions{ display:flex; gap:.7rem; margin-top:1.3rem; }
+/* De knoppenrij plakt onderaan de dialoog: opslaan mag nooit achter een scrollbalk verdwijnen.
+   De negatieve marges laten de balk tot de rand van de dialoog lopen, zodat er geen inhoud
+   langs de zijkanten doorheen schemert. */
+.actions{ display:flex; flex-wrap:wrap; gap:.7rem; margin:1.3rem -1.3rem -1.4rem; position:sticky; bottom:-1.4rem; z-index:4;
+  background:var(--surf); padding:.8rem 1.3rem 1rem; box-shadow:0 -14px 18px -14px var(--scrim); }
+.actions .btn{ flex:1 1 8rem; }
 .actions .btn.primary{ flex:1; }
 .set-row{ display:flex; align-items:center; gap:1rem; padding:.75rem 0; }
 .set-row + .set-row{ border-top:1px solid var(--border); }
@@ -401,7 +510,7 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 /* thema-kiezer */
 .theme-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:.65rem; margin-top:.3rem; }
 .theme-card{ border:1.5px solid var(--border); border-radius:var(--r-btn); padding:.55rem .55rem .5rem; background:var(--surf); text-align:center; transition:border-color var(--t), transform var(--t); }
-.theme-card:hover{ transform:translateY(-2px); border-color:var(--border-2); }
+
 .theme-card.on{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
 .tc-prev{ height:42px; border-radius:var(--r-input); overflow:hidden; display:flex; border:1px solid var(--border); margin-bottom:.45rem; }
 .tc-prev .p-bg{ flex:1.4; } .tc-prev .p-sf{ flex:1; } .tc-prev .p-ac{ width:14px; }
@@ -412,7 +521,7 @@ button{ font-family:inherit; cursor:pointer; color:inherit; }
 /* accent-swatches */
 .sw-row{ display:flex; flex-wrap:wrap; gap:.55rem; align-items:center; margin-top:.3rem; }
 .sw{ width:32px; height:32px; border-radius:50%; border:0; box-shadow:0 0 0 2px var(--border); display:grid; place-items:center; transition:transform var(--t), box-shadow var(--t); }
-.sw:hover{ transform:scale(1.08); }
+
 .sw.on{ box-shadow:0 0 0 2px var(--surf), 0 0 0 4px var(--accent); }
 .sw svg{ width:15px; height:15px; stroke:#fff; stroke-width:3; opacity:0; }
 .sw.on svg{ opacity:1; }
@@ -435,89 +544,88 @@ input[type=color].swatch::-moz-color-swatch{ border:0; border-radius:var(--r-btn
 
 
 /* meldingsbalk (toast) */
-.meld-host{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(var(--sp-5) + env(safe-area-inset-bottom)); z-index:60; pointer-events:none; }
-.meld{ pointer-events:auto; display:flex; align-items:center; gap:var(--sp-3); background:var(--surf); color:var(--text); border:1px solid var(--border-2); border-radius:var(--r-btn); box-shadow:var(--shadow-pop); padding:var(--sp-3) var(--sp-4); font-size:var(--fs-sm); line-height:var(--lh-normal); animation:meld-in var(--t) both; }
+/* Volle breedte + centreren i.p.v. left:50% met translateX(-50%): die variant hangt af van
+   shrink-to-fit van een fixed element en klapte in tot een paar pixels wanneer de melding
+   werd gezet terwijl de dialoog nog openstond. */
+.meld-host{ position:fixed; left:0; right:0; bottom:calc(var(--sp-5) + env(safe-area-inset-bottom));
+  z-index:60; pointer-events:none; display:flex; justify-content:center; padding:0 var(--sp-4); }
+.meld-host:empty{ display:none; }
+.meld{ pointer-events:auto; display:flex; align-items:center; gap:var(--sp-3); background:var(--surf); color:var(--text);
+  border:1px solid var(--border-2); border-radius:var(--r-btn); box-shadow:var(--shadow-pop);
+  padding:var(--sp-3) var(--sp-4); font-size:var(--fs-sm); line-height:var(--lh-normal);
+  animation:meld-in .22s cubic-bezier(.2,.8,.2,1) both; }
+.meld.weg{ animation:meld-uit .2s cubic-bezier(.4,0,1,1) both; }
 .meld.fout{ border-color:var(--danger); background:var(--danger-soft); }
-.meld-undo{ background:none; border:0; color:var(--accent); font:inherit; font-weight:700; padding:var(--sp-2) var(--sp-3); min-height:44px; border-radius:var(--r-btn); }
-@keyframes meld-in{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+.meld.feest{ border-color:var(--verdiend); background:var(--verdiend-soft); font-weight:700; }
+
+/* Mijlpaal: één korte uitbarsting. Alleen hier, en alleen als beweging aan staat.
+   Eigen klassenaam (niet `.feest`): dat botste met de meldingsvariant `.meld.feest`,
+   waardoor de melding zelf `position:fixed; inset:0` kreeg en het scherm vulde. */
+.snippers{ position:fixed; inset:0; z-index:80; pointer-events:none; overflow:hidden; }
+.snippers i{ position:absolute; top:-12px; left:var(--x); width:calc(7px * var(--zw)); height:12px; border-radius:2px;
+  background:var(--k); opacity:0; animation:snipper 2.2s var(--vt) cubic-bezier(.25,.55,.35,1) forwards; }
+@keyframes snipper{
+  0%{ opacity:0; transform:translateY(0) rotate(0); }
+  8%{ opacity:1; }
+  100%{ opacity:0; transform:translateY(102vh) rotate(var(--dr)); }
+}
+@media (prefers-reduced-motion:reduce){ .snippers{ display:none; } }
+.meld-undo{ background:none; border:0; color:var(--accent-tekst); font:inherit; font-weight:700; padding:var(--sp-2) var(--sp-3); min-height:44px; border-radius:var(--r-btn); }
+@keyframes meld-in{ from{ opacity:0; transform:translateY(14px) scale(.96); } to{ opacity:1; transform:none; } }
+@keyframes meld-uit{ from{ opacity:1; transform:none; } to{ opacity:0; transform:translateY(10px) scale(.97); } }
+@media (prefers-reduced-motion:reduce){ .meld, .meld.weg{ animation-duration:.01ms; } }
 
 
-/* kalender bijzondere dag tekst */
-.c-special{ font:700 var(--fs-xs) var(--body); letter-spacing:.04em; text-transform:uppercase; padding:1px 8px 0; line-height:var(--lh-tight); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.c-special.hr{ color:var(--accent); }
-.c-special.pay{ color:var(--verdiend); }
+/* De twee dagen die het salarisritme bepalen noemen zichzelf, onderaan de cel. */
+.c-special{ margin-top:auto; padding:3px 8px 0; font:700 .64rem var(--body); letter-spacing:.05em; text-transform:uppercase;
+  line-height:var(--lh-tight); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.c-work + .c-special{ margin-top:2px; }
+.c-special .cs-sm{ display:none; }
+.c-special.hr{ color:var(--accent-tekst); }
+.c-special.pay{ color:var(--verdiend-tekst); }
 
 /* binnenkort klikbaar */
 .up-row.btn-row{ background:transparent; border:0; width:100%; text-align:left; padding:.25rem .45rem; border-radius:10px; margin:0 -.45rem; cursor:pointer; display:flex; align-items:center; gap:.65rem; font-size:.86rem; transition:background var(--t), transform var(--t); }
-.up-row.btn-row:hover{ background:var(--surf3); transform:translateX(3px); }
+
 .up-row.btn-row:active{ transform:translateX(0); }
 .up-row .days-away{ font-size:.72rem; color:var(--faint); margin-left:.2rem; }
 
-/* loonstrook percentage badge + generieke gedempte pil (bijv. "van mei" bij een herverdeelde dag) */
-.row .pct-badge, .badge-muted{ display:inline-block; font:600 var(--fs-xs) var(--body); letter-spacing:.02em; background:var(--surf3); color:var(--muted); border-radius:99px; padding:.06rem .38rem; margin-left:.3rem; vertical-align:middle; font-variant-numeric:tabular-nums; }
-.netto-ratio-wrap{ margin-top:.9rem; padding-top:.75rem; border-top:1px solid var(--border); }
-.netto-ratio-meta{ display:flex; justify-content:space-between; font-size:.77rem; color:var(--muted); margin-bottom:.4rem; }
-.netto-ratio-meta b{ color:var(--verdiend); font-variant-numeric:tabular-nums; }
-.netto-bar-bg{ height:10px; border-radius:99px; background:var(--surf3); overflow:hidden; }
-.netto-bar-fg{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--verdiend), color-mix(in srgb, var(--verdiend) 70%, var(--accent))); transition:width .7s cubic-bezier(.2,.8,.2,1); }
 
-/* animaties */
-@keyframes fade-up{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
-@keyframes fade-in{ from{ opacity:0; } to{ opacity:1; } }
+/* animaties - één overgang: bij binnenkomst op een pagina en bij wisselen van maand/periode vervaagt
+   de inhoud kort in (class `in`, gezet door main.js). Herrenders om data animeren niet. */
+.content.in{ animation:content-in .16s ease-out; }
+@keyframes content-in{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
 @keyframes cal-flash{ 0%,100%{ box-shadow:none; border-color:var(--border); } 25%,65%{ box-shadow:0 0 0 2px var(--accent); border-color:var(--accent); } }
 
-/* kalender: één fade op het raster i.p.v. per-cel stagger (scheelt ~42 animaties) */
-.cal{ animation:fade-in .14s ease-out both; }
 .cal .c.flash{ animation:cal-flash 1.4s .1s ease-out forwards; }
 
-/* ---- no-anim on close ---- */
-#content.no-anim *{ animation-duration:0.001s !important; animation-delay:0s !important; transition-duration:0.001s !important; }
-
-/* ---- multi-shift UI ---- */
-.shift-item{ margin-top:.4rem; padding:.7rem .85rem; background:var(--surf2); border-radius:var(--r-input); margin-bottom:.55rem; }
-.shift-item:first-child{ margin-top:0; }
-.shift-nr{ font:600 .72rem var(--body); text-transform:uppercase; letter-spacing:.04em; color:var(--muted); flex-shrink:0; min-width:4rem; }
+/* ---- werktijdblokken: van, tot en waar, naast elkaar op één rij ---- */
+.blok{ padding:.7rem .85rem .75rem; background:var(--surf2); border:1px solid var(--border); border-radius:var(--r-input); }
+/* Labels staan alleen boven het eerste blok; de velden zelf houden hun aria-label. */
+.tv-lab.kaal{ gap:0; }
+.blok + .blok{ margin-top:.6rem; }
+.blok-kop{ display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
+.blok-nr{ font:700 .7rem var(--body); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.blok-rij{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.5fr); gap:.6rem; align-items:end; }
 .btn-icon{ display:inline-grid; place-items:center; width:38px; height:38px; border-radius:var(--r-btn); border:1px solid var(--border); background:var(--surf2); color:var(--muted); cursor:pointer; flex-shrink:0; transition:background var(--t), color var(--t); }
 .btn-icon:hover{ background:var(--danger-soft); color:var(--danger); }
 .btn-icon svg{ width:14px; height:14px; stroke-width:2.2; }
 
-/* ---- tijdkiezer dual-handle range slider ---- */
-.tk-range-wrap{ padding:.1rem 0; }
-.tk-rl-row{ display:flex; justify-content:space-between; margin-bottom:.55rem; }
-.tk-rl{ display:flex; flex-direction:column; align-items:center; gap:.1rem; }
-.tk-rl small{ font:500 var(--fs-xs) var(--body); color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
-.tk-rl b{ font:700 1.15rem var(--head); font-variant-numeric:tabular-nums; color:var(--text); }
-.tk-dual{ position:relative; height:36px; display:flex; align-items:center; }
-.tk-track-bg{ position:absolute; left:0; right:0; height:6px; border-radius:99px; background:var(--surf3); pointer-events:none; }
-.tk-track-fill{ position:absolute; height:6px; border-radius:99px; background:var(--accent); pointer-events:none; }
-.tk-range{ position:absolute; left:0; right:0; width:100%; -webkit-appearance:none; appearance:none; height:6px; background:transparent; outline:none; pointer-events:none; cursor:pointer; margin:0; }
-.tk-range:focus-visible::-webkit-slider-thumb{ outline:2px solid var(--accent); outline-offset:2px; }
-.tk-range:focus-visible::-moz-range-thumb{ outline:2px solid var(--accent); outline-offset:2px; }
-.tk-range::-webkit-slider-thumb{ -webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:var(--accent); box-shadow:0 1px 5px rgba(0,0,0,.22); pointer-events:all; cursor:pointer; transition:transform .12s; }
-.tk-range::-webkit-slider-thumb:hover{ transform:scale(1.12); }
-.tk-range::-moz-range-thumb{ width:22px; height:22px; border-radius:50%; background:var(--accent); border:0; pointer-events:all; cursor:pointer; }
-.tk-r-van{ z-index:2; }
-.tk-r-tot{ z-index:3; }
-.tk-extremes{ display:flex; justify-content:space-between; margin-top:.3rem; font:500 .7rem var(--body); color:var(--faint); }
-
-/* ---- instellingen 2-kol ---- */
-.set-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 2.5rem; align-items:start; }
-
 /* ---- loonstrook per-dag tabel ---- */
 .dag-list{ display:flex; flex-direction:column; gap:0; margin-top:.7rem; }
-.dag-row{ display:grid; grid-template-columns:6rem 1fr auto auto auto; gap:.4rem; align-items:center; padding:.38rem .1rem; border-top:1px solid var(--border); font-size:.84rem; }
+.dag-row{ display:grid; grid-template-columns:minmax(6.2rem,auto) 1fr auto auto auto; gap:.5rem; align-items:center; padding:.42rem .35rem; margin:0 -.35rem; width:calc(100% + .7rem); border:0; border-top:1px solid var(--border); border-radius:0; background:transparent; font:inherit; font-size:.84rem; color:inherit; text-align:left; transition:background var(--t); }
 .dag-row:first-child{ border-top:0; }
+.dag-row:hover{ background:var(--surf2); }
 .dag-row .dr-dt{ color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
 .dag-row .dr-tijd{ color:var(--muted); font-size:.76rem; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.dag-row .dr-loc-t{ color:var(--faint); font-size:.75rem; text-align:center; }
-.dag-row .dr-loc{ color:var(--faint); } .dag-row .dr-loc svg{ width:14px; height:14px; stroke-width:2; }
+.dag-row .dr-loc-t{ display:flex; justify-content:center; color:var(--faint); }
 .dag-row .dr-uren{ color:var(--muted); font-size:.8rem; font-variant-numeric:tabular-nums; }
-.dag-row .dr-bedrag{ font:700 .88rem var(--head); color:var(--verdiend); font-variant-numeric:tabular-nums; text-align:right; }
-.dr-tsl { font-size:var(--fs-xs); font-weight:700; color:#7a4b00; background:var(--suntint); padding:0 .25rem; border-radius:4px; }
+.dag-row .dr-bedrag{ font:700 .88rem var(--head); color:var(--verdiend-tekst); font-variant-numeric:tabular-nums; text-align:right; }
+.dr-tsl { font-size:var(--fs-xs); font-weight:700; color:var(--sun-ink); background:var(--suntint); padding:0 .25rem; border-radius:4px; }
 
 /* ---- clickable stats cards ---- */
 .card.clickable{ cursor:pointer; user-select:none; }
-.card.clickable:hover{ transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-2); }
+
 .card.clickable:active{ transform:translateY(0); }
 
 /* ---- drag & drop ---- */
@@ -525,37 +633,35 @@ input[type=color].swatch::-moz-color-swatch{ border:0; border-radius:var(--r-btn
 .c.drag-over{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent) !important; z-index:4; }
 
 /* --- Werktijd-invoer --- */
-.shift-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:.5rem; }
-.tv-row { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
-.tv-lab { display:flex; flex-direction:column; gap:.35rem; font-size:.72rem; font-weight:600; color:var(--muted); }
+.tv-lab { display:flex; flex-direction:column; gap:.35rem; font-size:.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
 .tv-in { width:100%; min-height:50px; text-align:center; font-variant-numeric:tabular-nums; font-size:1.4rem; font-weight:700; letter-spacing:.02em;
   padding:.45rem .4rem; border:1.5px solid var(--border-2); border-radius:var(--r-input); background:var(--surf); color:var(--text); font-family:var(--head);
   transition:border-color var(--t), box-shadow var(--t), background var(--t); }
+/* Kantoor/thuis per blok: even hoog als de tijdvelden, zodat de rij één regel blijft. */
+.loc-seg { min-height:50px; padding:3px; background:var(--surf); border-color:var(--border-2); border-width:1.5px; }
+.loc-seg button { min-height:0; padding:0 .5rem; gap:.32rem; font-size:.8rem; }
+.loc-seg button svg { width:15px; height:15px; }
+.loc-seg button span { overflow:hidden; text-overflow:ellipsis; }
+/* Snelkoppeling in een sectielabel ("Zelfde als 27 aug"). */
+.lab-knop { margin-left:auto; display:inline-flex; align-items:center; gap:.35rem; min-height:32px; padding:0 .6rem;
+  border:1px solid var(--border); border-radius:99px; background:var(--surf2); color:var(--accent-tekst);
+  font:700 .72rem var(--body); text-transform:none; letter-spacing:0; transition:background var(--t), border-color var(--t); }
+.lab-knop:hover { background:var(--accent-soft); border-color:var(--accent); }
+.lab-knop svg { width:13px; height:13px; stroke:currentColor; stroke-width:2; }
 .tv-in:hover { border-color:var(--accent); }
 .tv-in:focus { outline:0; border-color:var(--accent); background:var(--accent-soft); box-shadow:0 0 0 3px var(--accent-soft); }
 .tv-in::-webkit-calendar-picker-indicator { cursor:pointer; opacity:.55; filter:saturate(0); }
 .tv-in::-webkit-calendar-picker-indicator:hover { opacity:1; }
-.tl-wrap { margin-top:.85rem; }
-.tl-bar { position:relative; height:18px; background:repeating-linear-gradient(90deg,var(--surf3) 0 6px,transparent 6px 12px);
-  border-radius:var(--r-input); overflow:hidden; }
-.tl-seg { position:absolute; top:0; bottom:0; border-radius:6px; }
-.tl-werk { background:var(--accent); }
-.tl-pauze { background:repeating-linear-gradient(45deg,var(--surf3) 0 5px,var(--border-2) 5px 10px); }
-.tl-ends { display:flex; justify-content:space-between; font-size:.7rem; color:var(--faint); margin-top:.25rem; }
-.tl-leg { display:flex; gap:1rem; margin-top:.4rem; font-size:.7rem; color:var(--muted); }
-.tl-k::before { content:""; display:inline-block; width:.7rem; height:.7rem; border-radius:3px; margin-right:.35rem; vertical-align:-1px; }
-.tl-k.werk::before { background:var(--accent); }
-.tl-k.pauze::before { background:repeating-linear-gradient(45deg,var(--surf3) 0 3px,var(--border-2) 3px 6px); }
 
 .amount .amt-in { border:none; background:transparent; font:inherit; font-weight:600; color:var(--text); width:84px; outline:none; -moz-appearance:textfield; appearance:none; }
 /* iOS-achtige aan/uit-schakelaar */
 .switch { position:relative; display:inline-block; width:84px; height:44px; border-radius:99px; cursor:pointer;
   border:1px solid var(--border-2); background:var(--surf3); transition:background var(--t), border-color var(--t); }
 .switch .sw-knob { position:absolute; top:50%; left:5px; width:30px; height:30px; border-radius:50%; background:#fff;
-  box-shadow:0 1px 3px rgba(0,0,0,.3); transform:translateY(-50%); transition:left .2s cubic-bezier(.2,.8,.2,1); }
+  box-shadow:0 1px 3px rgba(0,0,0,.3); transform:translateY(-50%); transition:transform .2s cubic-bezier(.2,.8,.2,1); }
 .switch .sw-tekst { position:absolute; top:50%; transform:translateY(-50%); right:11px; font-size:.74rem; font-weight:700; color:var(--muted); transition:color var(--t); }
 .switch.on { background:var(--accent); border-color:var(--accent); }
-.switch.on .sw-knob { left:calc(100% - 35px); }
+.switch.on .sw-knob { transform:translate(44px, -50%); }
 .switch.on .sw-tekst { right:auto; left:13px; color:var(--accent-ink); }
 /* aangepaste themakleuren-paneel */
 .custom-kleuren { margin-top:.9rem; padding:.85rem 1rem; border:1px solid var(--border); border-radius:var(--r-input); background:var(--surf2); }
@@ -565,39 +671,329 @@ input[type=color].swatch::-moz-color-swatch{ border:0; border-radius:var(--r-btn
 .ul-box { display:flex; flex-direction:column; gap:.15rem; padding:.6rem .75rem; border-radius:var(--r-input); background:var(--surf2); border:1px solid var(--border); }
 .ul-box.net { background:var(--accent-soft); border-color:transparent; }
 .ul-l { font-size:.72rem; font-weight:600; color:var(--muted); }
-.ul-box.net .ul-l { color:var(--accent); }
+.ul-box.net .ul-l { color:var(--accent-tekst); }
 .ul-l .f { font-weight:500; color:var(--faint); }
 .ul-v { font:800 1.15rem var(--head); color:var(--text); font-variant-numeric:tabular-nums; }
-.amount.pct { display:flex; align-items:center; }
-.amount.pct .amt-in { text-align:right; width:48px; }
 .amount .amt-in::-webkit-outer-spin-button, .amount .amt-in::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
 .set-sections { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1.1rem; align-items:start; }
 .set-sec.wide { grid-column:1 / -1; }
 .set-sec { background:var(--surf); border:1px solid var(--border); border-radius:18px; padding:1.1rem 1.2rem; }
 .set-h { display:flex; align-items:center; gap:.5rem; font-size:1rem; margin:0 0 .8rem; }
 .set-h svg { width:1.1rem; height:1.1rem; }
+.btn-sm{ display:none; }
 .hidden { display:none !important; }
 .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
-.set-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-.mijn-code { overflow:hidden; }
 [data-action], .clickable, button, a, label.sw-custom, .leg-row[title], input[type=color] { cursor:pointer; }
 input[type=text], input[type=number], textarea, .amt-in { cursor:text; }
 button:focus-visible, a:focus-visible, [data-action]:focus-visible, .swatch:focus-visible {
   outline:2px solid var(--accent); outline-offset:2px; box-shadow:none; }
 
-/* Urenkaart-tab */
-.uk-wrap{ display:grid; gap:1rem; }
-.uk-velden{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.6rem; }
-.uk-veld{ display:flex; flex-direction:column; gap:.25rem; }
-.uk-veld label{ font:600 var(--fs-xs) var(--body); letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
-.uk-veld input{ border-radius:var(--r-input); background:var(--surf2); border:1px solid var(--border); padding:.55rem .7rem; font:500 .9rem var(--body); color:var(--text); transition:border-color var(--t); }
-.uk-veld input:focus{ outline:0; border-color:var(--accent); }
-.uk-previews{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1rem; }
-.uk-maand{ background:var(--surf); border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--shadow-sm); padding:.9rem 1rem; overflow-x:auto; }
-.uk-maand-kop{ font-weight:700; margin-bottom:.5rem; }
-.uk-tabel{ width:100%; border-collapse:collapse; font:500 .82rem var(--body); }
-.uk-tabel th{ text-align:left; color:var(--muted); font-weight:600; padding:.2rem .3rem; }
-.uk-tabel td{ padding:.15rem .3rem; border-top:1px solid var(--border); }
-.uk-tabel tr.uk-leeg td{ color:var(--muted); opacity:.45; }
-.uk-uren{ text-align:right; }
-.uk-totalen{ display:flex; flex-wrap:wrap; gap:.8rem; margin-top:.6rem; font-size:.8rem; color:var(--muted); }
+
+/* ---- loonperiode (19e t/m 18e, betaald op de 25e) ---- */
+.card .lab .lab-extra{ margin-left:auto; text-transform:none; letter-spacing:0; font-weight:500; color:var(--faint); font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+/* Periodebalk: de 19e-t/m-18e-grens wordt zichtbaar in plaats van uitgelegd. */
+.perbalk{ margin:.9rem 0 .2rem; }
+.pb-spoor{ position:relative; height:4px; border-radius:99px; background:var(--surf3); }
+.pb-vul{ position:absolute; inset:0 auto 0 0; border-radius:99px; background:var(--border-2); }
+.pb-nu{ position:absolute; top:50%; width:11px; height:11px; margin-left:-5.5px; border-radius:50%; background:var(--muted);
+  border:2px solid var(--surf); transform:translateY(-50%); box-shadow:var(--shadow-sm); }
+.pb-uit{ display:flex; justify-content:space-between; gap:.6rem; margin-top:.4rem; font-size:.74rem; color:var(--faint); font-variant-numeric:tabular-nums; }
+.pb-uit .pb-mid{ color:var(--muted); font-weight:600; text-align:center; }
+
+/* De enige kaart naast de kalender. */
+.periode-kaart .pk-bedrag{ display:flex; align-items:baseline; gap:.4rem; margin-top:.5rem;
+  font:800 2rem/1.05 var(--head); letter-spacing:-.03em; color:var(--verdiend); font-variant-numeric:tabular-nums; }
+.periode-kaart .pk-bedrag small{ font:600 .82rem var(--body); color:var(--muted); letter-spacing:0; }
+.periode-kaart .bd.plain{ padding-top:.75rem; margin-top:.4rem; border-top:1px solid var(--border); }
+.btn.breed{ width:100%; margin-top:.9rem; }
+
+/* Een moment om te vieren: zeldzaam genoeg om luid te mogen zijn. */
+.vier{ display:flex; align-items:flex-start; gap:.5rem; margin-top:.7rem; padding:.55rem .7rem; border-radius:var(--r-input);
+  background:var(--verdiend-soft); color:var(--text); font-size:.79rem; line-height:1.4; }
+.vier svg{ width:16px; height:16px; stroke:var(--verdiend-tekst); stroke-width:2; flex-shrink:0; margin-top:.06rem; }
+.vier b{ color:var(--verdiend-tekst); font-weight:800; font-variant-numeric:tabular-nums; }
+.vier.groot{ margin-top:.9rem; font-size:.84rem; padding:.7rem .85rem; }
+.nu-verdiend{ display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-top:.75rem;
+  padding:.5rem .7rem; border-radius:var(--r-input); background:var(--accent-soft); font-size:.8rem; color:var(--muted); }
+.nu-verdiend b{ color:var(--verdiend-tekst); font-weight:800; font-variant-numeric:tabular-nums; }
+
+.calhead-titel{ display:flex; flex-direction:column; min-width:0; }
+.calhead-sub{ font-size:.78rem; color:var(--muted); font-variant-numeric:tabular-nums; line-height:1.35; }
+.sh-head .chip.stil{ color:var(--muted); background:var(--surf3); }
+
+/* ---------- responsive ----------
+   Vijf tiers, gekozen op de apparaten die deze app echt gebruikt:
+     >1400  bureaublad breed        zijbalk 212px, raster 4 kolommen
+     1100   MacBook / iPad landschap zijbalk 212px, raster 3
+      900   iPad landschap          iconenrail, raster 3, kalender houdt zijn rail ernaast
+      720   iPad portret            iconenrail, raster 2, kalender onder elkaar
+      520   iPhone                  onderbalk, raster 1, bottom-sheets
+   Staat bewust achteraan: deze regels overschrijven component-regels met dezelfde
+   specificiteit en werken dus alleen als ze ná die regels komen. */
+/* Het raster houdt een even aantal kolommen: met drie kolommen past een 'breed' widget
+   (2 kolommen) nooit naast een ander en valt alles onder elkaar. Vier of twee dus. */
+@media (max-width:1500px){
+  .ov-grid{ grid-template-columns:repeat(4,1fr); gap:1rem; grid-auto-rows:142px; }
+}
+/* max-width:1100px - iconenrail i.p.v. volle zijbalk; de kalender houdt zijn rail nog wel. */
+@media (max-width:1100px){
+  .sb{ width:64px; padding:var(--sp-4) var(--sp-2); align-items:center; }
+  .brand{ justify-content:center; gap:0; margin-bottom:var(--sp-4); }
+  .brand-txt, .ni-label{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+  .ni{ width:44px; height:44px; padding:0; justify-content:center; }
+  .sb-foot{ display:none; }
+  .sb-profiel{ justify-content:center; padding:.5rem; min-width:44px; gap:0; }
+  .sb-profiel .pf-naam, .sb-profiel .pf-chev{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+  .content{ overflow:auto; }
+  .kal-wrap{ grid-template-columns:1fr 232px; }
+  /* Smalle rail: de tussen-haakjes-toelichtingen breken de regel; die laten we hier weg. */
+  .periode-kaart .row .f{ display:none; }
+  .periode-kaart .pb-uit{ font-size:.7rem; }
+  .periode-kaart .pb-uit > span{ white-space:nowrap; }
+  .periode-kaart .pk-bedrag{ font-size:1.7rem; }
+  /* Smallere cellen: het korte label past nog wel, het lange niet meer. */
+  .c-special .cs-lg{ display:none; }
+  .c-special .cs-sm{ display:inline; }
+  .loon-wrap{ grid-template-columns:minmax(0,1fr); }
+  .set-sections{ grid-template-columns:1fr; }
+  .theme-grid{ grid-template-columns:repeat(2,1fr); }
+  .ov-grid{ grid-template-columns:repeat(2,1fr); grid-auto-rows:146px; }
+}
+/* max-width:900px - iPad portret en smalle vensters: de kalender krijgt de volle breedte en de
+   salariskaart schuift eronder. Kaart en rail krijgen dan hun natuurlijke hoogte en de pagina scrolt. */
+@media (max-width:900px){
+  .kal-wrap{ grid-template-columns:1fr; flex:none; min-height:auto; }
+  .kal-wrap .calcard{ overflow:visible; }
+  .kal-wrap .cal{ grid-auto-rows:minmax(74px,auto); overflow:visible; }
+  .kal-rail{ overflow:visible; }
+  .ov-grid{ grid-template-columns:repeat(2,1fr); }
+}
+/* max-width:720px - telefoon: zijbalk wordt een vaste onderbalk, overlays worden bottom-sheets. */
+@media (max-width:720px){
+  body{ height:auto; overflow:auto; overscroll-behavior-y:contain; }
+  #app.shell{ flex-direction:column; height:auto; }
+  .sb{ position:fixed; inset:auto 0 0 0; width:auto; height:auto; flex-direction:row; justify-content:space-around; align-items:center;
+       border-right:0; border-top:1px solid var(--border); z-index:50;
+       padding:.4rem calc(.6rem + env(safe-area-inset-right)) calc(.4rem + env(safe-area-inset-bottom)) calc(.6rem + env(safe-area-inset-left)); }
+  .brand{ display:none; }
+  .sb .nav{ display:contents; }
+  .sb-profiel{ margin:0; }
+  .content{ overflow:visible; padding:1.1rem;
+            padding-left:calc(1.1rem + env(safe-area-inset-left)); padding-right:calc(1.1rem + env(safe-area-inset-right));
+            padding-bottom:calc(4.2rem + env(safe-area-inset-bottom)); }
+  .meld-host{ bottom:calc(4.4rem + env(safe-area-inset-bottom)); }
+  .seg button{ min-height:44px; }
+  .note-input{ font-size:16px; }
+  .kal-wrap{ grid-template-columns:1fr; }
+  .kal-wrap .cal{ grid-auto-rows:auto; }
+  .kal-wrap .c{ min-height:64px; }
+  .nav-btn, .calhead .today-btn, .sh-head .x, .btn-icon, .up-row.btn-row, .klembord-banner .btn{ min-height:44px; }
+  .sw, .sw-custom, .kl-reset{ width:44px; height:44px; }
+  input[type=color].swatch{ width:44px; height:44px; }
+  .ovl[open]{ align-items:flex-end; padding:0; }
+  .sh-cols{ grid-template-columns:1fr; gap:.4rem; }
+  .sh-col-resultaat{ position:static; }
+  .sheet, .sheet.dag-sheet{ max-width:100%; width:100%; border-radius:20px 20px 0 0; max-height:94dvh;
+    padding:1.1rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom));
+    padding-left:calc(1.1rem + env(safe-area-inset-left)); padding-right:calc(1.1rem + env(safe-area-inset-right));
+    animation:sheet-up .26s cubic-bezier(.2,.8,.2,1); }
+  .sh-head{ position:sticky; top:0; z-index:2; background:var(--surf); padding-top:.15rem; margin-top:-.15rem; }
+  .profiel-grid{ gap:.6rem; }
+  .actions{ margin:1.1rem -1.1rem calc(-1.2rem - env(safe-area-inset-bottom));
+    bottom:calc(-1.2rem - env(safe-area-inset-bottom));
+    padding:.7rem calc(1.1rem + env(safe-area-inset-left)) calc(.9rem + env(safe-area-inset-bottom)) calc(1.1rem + env(safe-area-inset-right)); }
+  .actions .btn{ min-height:46px; }
+  /* Blokrij stapelt: tijden naast elkaar, de locatiekeuze eronder op volle breedte. */
+  .blok-rij{ grid-template-columns:1fr 1fr; }
+  .blok-rij > .tv-lab:last-child{ grid-column:1 / -1; }
+  .loc-seg{ min-height:46px; }
+  .loc-seg button{ min-height:40px; }
+  .lab-knop{ min-height:36px; }
+  .dag-row{ display:grid; grid-template-columns:1fr auto auto auto; grid-template-areas:"dt dt dt bedrag" "tijd loc uren uren"; row-gap:.2rem; column-gap:.4rem; }
+  .dag-row .dr-dt{ grid-area:dt; }
+  .dag-row .dr-bedrag{ grid-area:bedrag; text-align:right; }
+  .dag-row .dr-tijd{ grid-area:tijd; }
+  .dag-row .dr-loc-t{ grid-area:loc; }
+  .dag-row .dr-uren{ grid-area:uren; text-align:right; }
+  .paginakop{ gap:.6rem; }
+  .paginakop h2{ font-size:1.4rem; }
+  .btn-lg{ display:none; }
+  .btn-sm{ display:inline; }
+}
+@keyframes sheet-up{ from{ transform:translateY(100%); } to{ transform:none; } }
+
+/* Korte vensters (laptop met browserbalk, iPad landschap): de kalendercel wordt compacter zodat
+   de zesde week nog steeds binnen het scherm valt in plaats van eronder te verdwijnen. */
+@media (min-width:901px) and (max-height:860px){
+  .content{ padding:1.15rem 1.4rem; gap:.9rem; }
+  .paginakop h2{ font-size:1.4rem; }
+  .calcard{ padding:.9rem 1rem 1rem; }
+  .calhead{ margin-bottom:.6rem; }
+  .calhead h3{ font-size:1.1rem; }
+  .nav-btn{ width:34px; height:34px; }
+  .calhead .today-btn{ min-height:34px; }
+  .dow{ margin-bottom:5px; }
+  .dow b{ font-size:.68rem; }
+  .cal{ gap:5px; }
+  .c{ padding:4px 0; }
+  .c .num{ font-size:.92rem; }
+  .c-work{ padding:2px 6px 0; }
+  .c-work .u{ font-size:.7rem; }
+  .c-work .e{ font-size:.85rem; }
+  .c-special{ font-size:.58rem; padding:1px 6px 0; }
+}
+@media (min-width:901px) and (max-height:700px){
+  .c .num{ font-size:.82rem; }
+  .c-work .u{ font-size:.64rem; }
+  .c-work .e{ font-size:.78rem; }
+  .c-special .cs-lg{ display:none; }
+  .c-special .cs-sm{ display:inline; }
+}
+/* max-width:520px - smalle telefoon: overzicht-raster en kalendercellen compact. */
+@media (max-width:520px){
+  /* Eén kolom: de breedte is gegeven, dus de maat bepaalt alleen nog de hoogte. */
+  .ov-grid{ grid-template-columns:1fr; grid-auto-rows:126px; gap:.9rem; }
+  .ov-w.maat-breed, .ov-w.maat-groot{ grid-column:span 1; }
+  .ov-w.maat-groot{ grid-row:span 2; }
+  .gal-prev{ width:82px; height:82px; }
+  .wg .teller, .wg.salaris .sk-bedrag, .wg-v{ font-size:1.75rem; }
+  .wg.ritme .reeks-n{ font-size:2.4rem; }
+  .calcard{ padding:1rem .65rem 1.1rem; }
+  .cal{ gap:4px; }
+  .c{ min-height:66px; }
+  .c-top{ padding:0 4px; }
+  .c .num{ font-size:.82rem; }
+  .c-work{ padding:2px 3px 0; }
+  .c-work .u{ font-size:.6rem; flex-wrap:wrap; white-space:normal; row-gap:1px; }
+  .c-work .u .loc-ic svg{ width:10px; height:10px; }
+  .c-tsl{ font-size:.55rem; }
+  .c-work .e{ font:800 .66rem var(--body); letter-spacing:-.035em; }
+  .calhead{ gap:.5rem; }
+  .calhead-titel{ flex:1; }
+  .calhead h3{ min-width:0; font-size:1rem; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .calhead .today-btn{ padding:0 .65rem; }
+  .card .lab{ flex-wrap:wrap; row-gap:.15rem; }
+  .card .lab .lab-extra{ margin-left:0; flex-basis:100%; }
+  .dow-lg{ display:none; }
+  .dow-sm{ display:inline; }
+  .c-special{ font-size:.58rem; text-transform:none; letter-spacing:0; padding:2px 4px 0; }
+  .c-special .cs-lg{ display:none; }
+  .c-special .cs-sm{ display:inline; }
+}
+
+/* ---- loonstrook: hero + opbouw ---- */
+.loon-hero .calhead{ margin-bottom:1.1rem; }
+.loon-hero .hero-bedrag{ font:800 2.6rem/1.05 var(--head); letter-spacing:-.03em; color:var(--verdiend); margin-top:.35rem; font-variant-numeric:tabular-nums; display:flex; align-items:baseline; gap:.5rem; }
+.loon-hero .hero-bedrag small{ font:600 .95rem var(--body); color:var(--muted); letter-spacing:0; }
+.loon-hero .hero-sub{ display:flex; flex-wrap:wrap; align-items:center; gap:.35rem .8rem; margin-top:.45rem; font-size:.86rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+.hero-delta{ font-weight:700; font-size:.8rem; padding:.12rem .5rem; border-radius:99px; }
+.hero-delta.plus{ color:var(--verdiend-tekst); background:var(--verdiend-soft); }
+.hero-delta.min{ color:var(--danger); background:var(--danger-soft); }
+.verdeel{ display:flex; height:10px; border-radius:99px; overflow:hidden; background:var(--surf3); margin-top:1rem; gap:2px; }
+.verdeel .vd{ display:block; height:100%; }
+.verdeel .vd.netto{ background:var(--verdiend); }
+.verdeel .vd.reis{ background:color-mix(in srgb, var(--verdiend) 45%, var(--surf)); }
+.verdeel .vd.inhoud{ background:color-mix(in srgb, var(--danger) 45%, var(--surf)); }
+.verdeel-leg{ display:flex; flex-wrap:wrap; gap:.35rem 1rem; margin-top:.55rem; font-size:.76rem; color:var(--muted); }
+.verdeel-leg .vk{ display:inline-flex; align-items:center; gap:.4rem; }
+.verdeel-leg .vk b{ color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+.verdeel-leg .vk::before{ content:""; width:9px; height:9px; border-radius:3px; }
+.verdeel-leg .vk.netto::before{ background:var(--verdiend); }
+.verdeel-leg .vk.reis::before{ background:color-mix(in srgb, var(--verdiend) 45%, var(--surf)); }
+.verdeel-leg .vk.inhoud::before{ background:color-mix(in srgb, var(--danger) 45%, var(--surf)); }
+.row.corr .v{ display:inline-flex; align-items:center; gap:.35rem; }
+.row-details summary{ list-style:none; cursor:pointer; }
+.row-details summary::-webkit-details-marker{ display:none; }
+.row-details summary .k{ display:inline-flex; align-items:center; gap:.15rem; }
+.row-details .chev{ display:inline-flex; color:var(--faint); transition:transform var(--t); }
+.row-details .chev svg{ width:14px; height:14px; stroke-width:2.4; }
+.row-details[open] .chev{ transform:rotate(90deg); }
+.row-details summary:hover .k{ color:var(--text); }
+.card .leeg-tekst{ margin:.6rem 0 .2rem; font-size:.88rem; color:var(--muted); line-height:1.5; max-width:38ch; }
+.btn-icon.xs{ width:26px; height:26px; }
+.btn-icon.xs svg{ width:12px; height:12px; }
+.btn.klein{ min-height:38px; padding:0 .8rem; font-size:.84rem; margin-top:.6rem; }
+.card.leeg .leeg-tekst{ margin:.6rem 0 .9rem; font-size:.88rem; color:var(--muted); line-height:1.5; max-width:38ch; }
+
+/* ---- instellingen: schaal/trede-keuze ---- */
+.seg.wrap{ flex-wrap:wrap; }
+.seg.wrap button{ flex:1 0 1.75rem; padding:0 .15rem; min-height:40px; font-variant-numeric:tabular-nums; }
+.hero-delta:not(.plus):not(.min){ color:var(--muted); background:var(--surf3); }
+.keuze-naam{ margin-top:.45rem; font-size:.84rem; font-weight:600; color:var(--text); }
+.set-sec .hint{ font-size:.78rem; color:var(--muted); line-height:1.45; }
+
+/* ---- werkdag-dialoog ---- */
+.sh-head .sh-sub{ margin-top:.2rem; font-size:.8rem; color:var(--muted); }
+.sh-head .t .chip{ vertical-align:middle; margin:0 0 0 .35rem; }
+.tijd-samenvatting{ margin-top:.65rem; font-size:.84rem; color:var(--muted); line-height:1.45; }
+.veld-fout{ color:var(--danger); font-size:.8rem; font-weight:600; margin-top:.5rem; }
+.veld-fout:empty{ display:none; }
+[data-rol="reiskosten"] .hint{ margin-top:.35rem; font-size:.8rem; color:var(--muted); line-height:1.45; }
+[data-rol="reiskosten"] .hint b{ color:var(--verdiend); font-weight:700; }
+.resultaat{ display:flex; flex-direction:column; gap:.15rem; padding:.9rem 1rem; border-radius:var(--r-input); background:var(--accent-soft); }
+.resultaat .lab{ font:600 var(--fs-xs) var(--body); letter-spacing:.06em; text-transform:uppercase; color:var(--accent-tekst); }
+.resultaat .res-bedrag{ font:800 1.7rem/1.1 var(--head); letter-spacing:-.02em; color:var(--verdiend-tekst); font-variant-numeric:tabular-nums; display:flex; align-items:baseline; gap:.4rem; }
+.resultaat .res-bedrag small{ font:600 .85rem var(--body); color:var(--muted); letter-spacing:0; }
+.resultaat .res-hint{ font-size:.82rem; color:var(--muted); line-height:1.5; }
+.resultaat .res-bedrag{ margin-top:.2rem; }
+
+/* De opbouw als één balk in plaats van een bonnetje: je ziet in één blik waar het geld heen gaat. */
+.res-balk{ display:flex; height:9px; margin-top:.75rem; border-radius:99px; overflow:hidden; background:var(--surf3); gap:2px; }
+.res-balk .rb{ display:block; height:100%; }
+.res-balk .rb.loon{ background:var(--verdiend); }
+.res-balk .rb.reis{ background:color-mix(in srgb, var(--verdiend) 45%, var(--surf)); }
+.res-balk .rb.af{ background:color-mix(in srgb, var(--danger) 45%, var(--surf)); }
+.res-leg{ list-style:none; margin:.6rem 0 0; padding:0; display:flex; flex-wrap:wrap; gap:.3rem .9rem;
+  font-size:.78rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+.res-leg li{ display:inline-flex; align-items:center; gap:.4rem; }
+.res-leg li::before{ content:""; width:9px; height:9px; border-radius:3px; flex-shrink:0; }
+.res-leg li.loon::before{ background:var(--verdiend); }
+.res-leg li.reis::before{ background:color-mix(in srgb, var(--verdiend) 45%, var(--surf)); }
+.res-leg li.af::before{ background:color-mix(in srgb, var(--danger) 45%, var(--surf)); }
+.res-leg b{ color:var(--text); font-weight:700; }
+.res-groei{ margin-top:.9rem; padding-top:.8rem; border-top:1px solid var(--border-2); }
+.rg-regel{ font-size:.82rem; color:var(--muted); line-height:1.45; }
+.rg-regel b{ color:var(--verdiend-tekst); font-weight:800; font-variant-numeric:tabular-nums; }
+
+/* Volgende ronde grens - altijd zichtbaar, zodat er altijd iets is om naartoe te werken. */
+.mijl{ margin-top:.55rem; }
+.mijl-spoor{ height:6px; border-radius:99px; background:var(--surf3); overflow:hidden; }
+.mijl-spoor span{ display:block; height:100%; border-radius:99px;
+  background:linear-gradient(90deg, color-mix(in srgb,var(--verdiend) 55%,var(--surf3)), var(--verdiend)); }
+.mijl-tekst{ display:block; margin-top:.35rem; font-size:.76rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+.mijl-tekst b{ color:var(--text); font-weight:700; }
+.wg.salaris .mijl, .periode-kaart .mijl{ margin-top:.7rem; }
+.sh-col-resultaat .resultaat{ padding:1.1rem 1.15rem; }
+.sh-col-resultaat .res-bedrag{ font-size:2rem; }
+.resultaat.leeg{ background:var(--surf2); }
+.resultaat.leeg .lab{ color:var(--muted); }
+
+.row .v.verdiend{ color:var(--verdiend-tekst); }
+
+
+/* ---------- invoer en aanwijzer ---------- */
+/* Alle beweging-bij-hover staat achter `hover:hover`. Op een touchscreen blijft zo'n effect
+   na een tik hangen; op iPad en iPhone zag je dan opgetilde kaarten die niet terugvielen. */
+@media (hover:hover) and (pointer:fine){
+  .btn:hover{ transform:translateY(-1px); box-shadow:var(--shadow); background:var(--surf2); }
+  .c:hover{ transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-2); z-index:3; }
+  .card.clickable:hover{ transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-2); }
+  .wg.klikbaar:hover{ transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-2); }
+  .theme-card:hover{ transform:translateY(-2px); border-color:var(--border-2); }
+  .sw:hover{ transform:scale(1.08); }
+  .up-row.btn-row:hover{ background:var(--surf3); transform:translateX(3px); }
+}
+/* Aanraakbediening hangt aan de aanwijzer, niet aan de schermbreedte: een iPad in landschap is
+   1024px breed en toch een touchscreen. Doelen van 44px en 16px invoertekst (anders zoomt iOS in). */
+@media (pointer:coarse){
+  .btn, .seg button, .nav-btn, .calhead .today-btn, .sh-head .x, .btn-icon,
+  .up-row.btn-row, .klembord-banner .btn, .lab-knop, .dag-row{ min-height:44px; }
+  .sw, .sw-custom, .kl-reset, input[type=color].swatch{ width:44px; height:44px; }
+  .ov-weg{ width:34px; height:34px; top:-11px; left:-11px; }
+  .maat-btn{ width:38px; height:32px; }
+  .btn-icon{ width:44px; height:44px; }
+  .note-input, .amt-in, .tv-in, input[type=text], textarea{ font-size:16px; }
+  .tv-in{ font-size:1.4rem; }
+  .c{ -webkit-tap-highlight-color:transparent; }
+}

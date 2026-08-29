@@ -2,12 +2,12 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = factory();
   else { root.Salaris = root.Salaris || {}; root.Salaris.sync = factory(); }
 })(typeof self !== 'undefined' ? self : this, function () {
-  // Supabase-project (publishable key mág publiek — de data wordt client-side versleuteld).
+  // Supabase-project (publishable key mág publiek - de data wordt client-side versleuteld).
   const URL_BASE = 'https://gtnzuvyntdmbttlxlrme.supabase.co';
   const KEY = 'sb_publishable_1HaquDrwFzXiRmY0JhbP4g_9MaB5fWU';
   const REST = URL_BASE + '/rest/v1/profielen';
   // App-brede sleutel: geen wachtwoord meer. De payload blijft ciphertext-at-rest in Supabase,
-  // maar dit is geen echte geheimhouding (de bron is publiek op GitHub Pages) — alleen obfuscatie.
+  // maar dit is geen echte geheimhouding (de bron is publiek op GitHub Pages) - alleen obfuscatie.
   const APP_SECRET = 'salaris-app::vast::2026::thomas-aleyna';
 
   const webcrypto = (typeof globalThis !== 'undefined' && globalThis.crypto && globalThis.crypto.subtle)

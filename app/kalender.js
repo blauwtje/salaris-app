@@ -1,8 +1,8 @@
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports)
-    module.exports = factory(require('./util.js'), require('./feestdagen.js'), require('./reken.js'));
-  else { root.Salaris = root.Salaris || {}; root.Salaris.kalender = factory(root.Salaris.util, root.Salaris.feestdagen, root.Salaris.reken); }
-})(typeof self !== 'undefined' ? self : this, function (util, feestdagen, reken) {
+    module.exports = factory(require('./util.js'), require('./feestdagen.js'), require('./reken.js'), require('./periode.js'));
+  else { root.Salaris = root.Salaris || {}; root.Salaris.kalender = factory(root.Salaris.util, root.Salaris.feestdagen, root.Salaris.reken, root.Salaris.periode); }
+})(typeof self !== 'undefined' ? self : this, function (util, feestdagen, reken, periode) {
   function maandModel(jaar, maand /* 1-12 */, dagen, inst, vandaagIso) {
     const eerste = new Date(jaar, maand - 1, 1);
     const startOffset = (eerste.getDay() + 6) % 7; // maandag = 0
@@ -21,23 +21,20 @@
       const iso = util.isoDate(d);
       const uitMaand = d.getMonth() !== maand - 1;
       const feest = fdag.get(iso) || buren.get(iso) || null;
+      const dagNummer = d.getDate();
       const cel = {
-        iso, dagNummer: d.getDate(), uitMaand,
+        iso, dagNummer, uitMaand,
         zondag: d.getDay() === 0,
         feestdag: feest, geblokkeerd: !!feest,
         vandaag: iso === vandaagIso,
-        hrDeadline: !uitMaand && d.getDate() === 19,
-        salarisdag: !uitMaand && d.getDate() === 25,
-        betaaldeUren: 0, bruto: 0, netto: 0,
+        indiendag: !uitMaand && dagNummer === periode.INDIENDAG,
+        salarisdag: !uitMaand && dagNummer === periode.BETAALDAG,
+        nieuwePeriode: !uitMaand && dagNummer === periode.EINDDAG + 1,
+        betaaldeUren: 0,
         toeslag: reken.toeslagFractie({ datum: iso, zondagToeslag: (dagen[iso] && dagen[iso].zondagToeslag != null) ? dagen[iso].zondagToeslag : undefined }, inst),
       };
       const data = dagen[iso];
-      if (data && !cel.geblokkeerd) {
-        const b = reken.dagBruto({ ...data, datum: iso }, inst);
-        cel.betaaldeUren = b.betaaldeUren;
-        cel.bruto = b.brutoBelastbaar + b.btLoon + b.reiskosten;
-        cel.netto = cel.bruto; // ruwe indicatie; exact per-dag netto komt uit reken.maandReken in de UI
-      }
+      if (data && !cel.geblokkeerd) cel.betaaldeUren = reken.dagBruto({ ...data, datum: iso }, inst).betaaldeUren;
       cellen.push(cel);
     }
     return cellen;

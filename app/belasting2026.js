@@ -6,7 +6,7 @@
   // geautomatiseerde loonadministratie 2026"). Box 1, onder AOW-leeftijd
   // (incl. premies volksverzekeringen). Deze module volgt het exacte
   // tabel-algoritme (§2.1–2.2.4) inclusief de voorgeschreven afrondingen, zodat
-  // de uitkomst overeenkomt met de witte maandtabel — geverifieerd tegen de
+  // de uitkomst overeenkomt met de witte maandtabel - geverifieerd tegen de
   // officiële tabel (o.a. loon €2.142 → loonheffing €68,08 / arbeidskorting
   // €438,08) en tegen de payslip van juni 2026 (€2.145 belastbaar → €68,08).
   const TAX_2026 = {
@@ -19,7 +19,7 @@
     ],
     // Algemene heffingskorting (Tabel 3).
     ahk: { max: 3115, afbouwStart: 29736, afbouwEind: 78426, afbouwPct: 0.06398 },
-    // Arbeidskorting (Tabel 6) — officiële 2026-knikpunten en opbouw-/afbouwfactoren.
+    // Arbeidskorting (Tabel 6) - officiële 2026-knikpunten en opbouw-/afbouwfactoren.
     ark: {
       arko1: 0.08324, arko2: 0.31009, arko3: 0.01950, arka1: 0.06510,
       arkg1: 11965, arkg2: 25845, arkg3: 45592, arkg4: 132920,

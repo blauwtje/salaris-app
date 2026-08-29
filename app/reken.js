@@ -7,7 +7,7 @@
 
   // Werknemerspremies (2026-model, geijkt op de payslip van juni 2026).
   // De pensioenfranchise schaalt naar rato van de betaalde uren (i.p.v. een vaste
-  // maandfranchise) — nodig omdat het uurtal per maand wisselt bij een oproepkracht:
+  // maandfranchise) - nodig omdat het uurtal per maand wisselt bij een oproepkracht:
   // €2265,48 bruto over 126u → franchisegrondslag €1018,53 → pensioengrondslag
   // €1246,95 → pensioen €118,21, exact zoals op de strook.
   const PREMIE = { pensioenPct: 0.0948, pensioenFranchisePerUur: 1018.53 / 126, paww: 0.001, wga: 0.0064 };
@@ -20,14 +20,31 @@
     return aan ? ZONDAG_TOESLAG : 0;
   }
 
+  // Een dag bestaat uit één of meer blokken: blok 1 staat plat op de dag (van/tot/locatie), de
+  // rest in `extra`. Een extra blok zonder eigen locatie erft die van de dag, zodat dagen van
+  // vóór de gemengde dag (deels kantoor, deels thuis) exact hetzelfde blijven rekenen.
+  function blokken(dag) {
+    const rest = (dag.extra || []).map(e => ({ van: e.van, tot: e.tot, locatie: e.locatie || dag.locatie }));
+    return [{ van: dag.van, tot: dag.tot, locatie: dag.locatie }].concat(rest);
+  }
+  // Reiskosten zijn een vergoeding voor de rit, niet voor de uren: één keer per dag, zodra je
+  // die dag ook maar één blok op kantoor werkte. Een dag 9–12 kantoor + 16–18 thuis telt dus mee.
+  const opKantoor = dag => blokken(dag).some(b => b.locatie === 'kantoor');
+  const gemengd = dag => { const b = blokken(dag); return b.some(x => x.locatie === 'kantoor') && b.some(x => x.locatie !== 'kantoor'); };
+  // Klokuren per locatie - voor weergave ("5,0u kantoor · 2,0u thuis"), niet voor de berekening.
+  function urenPerLocatie(dag) {
+    const out = { kantoor: 0, thuis: 0 };
+    blokken(dag).forEach(b => { out[b.locatie === 'kantoor' ? 'kantoor' : 'thuis'] += uren.klokuren(b.van, b.tot); });
+    return out;
+  }
+
   function dagBruto(dag, inst) {
-    let klok = uren.klokuren(dag.van, dag.tot);
-    const heeftExtraDiensten = dag.extra && dag.extra.length > 0;
-    if (heeftExtraDiensten) dag.extra.forEach(e => { klok += uren.klokuren(e.van, e.tot); });
-    const betaald = heeftExtraDiensten ? klok : uren.betaaldeUren(klok);
+    const bl = blokken(dag);
+    const klok = bl.reduce((s, b) => s + uren.klokuren(b.van, b.tot), 0);
+    const betaald = bl.length > 1 ? klok : uren.betaaldeUren(klok);
     const basisloon = betaald * inst.uurloon;
     const toeslag = betaald * inst.uurloon * toeslagFractie(dag, inst);
-    const reiskosten = dag.locatie === 'kantoor' ? inst.reiskostenPerKantoordag : 0;
+    const reiskosten = opKantoor(dag) ? inst.reiskostenPerKantoordag : 0;
     return { datum: dag.datum, klokuren: klok, betaaldeUren: betaald, basisloon, toeslag, reiskosten, brutoBelastbaar: basisloon, btLoon: toeslag };
   }
 
@@ -55,7 +72,7 @@
   function maandReken(dagen, inst, opties = {}) {
     const per = dagen.map(d => dagBruto(d, inst));
     // Correctie-uren: niet aan een dag gekoppeld (bijv. een nabetaling van een vorige maand).
-    // Belast als gewoon extra tabelloon, tegen het normale tabeltarief — geen bijzonder tarief.
+    // Belast als gewoon extra tabelloon, tegen het normale tabeltarief - geen bijzonder tarief.
     const extraUren = opties.extraUren || 0;
     const extraLoon = r2(extraUren * inst.uurloon);
     const tabelLoon = Math.max(0, per.reduce((s, d) => s + d.brutoBelastbaar, 0) + extraLoon);
@@ -74,5 +91,16 @@
     return { perDag: per, totalen: tot, vakantiegeldReservering: tot.vakantiegeldReservering };
   }
 
-  return { dagBruto, rekenTotalen, maandReken, toeslagFractie, PREMIE, ZONDAG_TOESLAG };
+  // Ronde bedragen die het vieren waard zijn. Geeft de hoogste drempel die je met deze wijziging
+  // passeert, of null. Alleen omhoog: een correctie naar beneden viert niets.
+  const MIJLPALEN = [250, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000];
+  function mijlpaal(oud, nieuw) {
+    const gehaald = MIJLPALEN.filter(m => oud < m && nieuw >= m);
+    return gehaald.length ? gehaald[gehaald.length - 1] : null;
+  }
+  // De eerstvolgende drempel boven een bedrag - zodat je altijd ziet waar je naartoe werkt,
+  // niet alleen als je er overheen gaat.
+  const volgendeMijlpaal = bedrag => MIJLPALEN.find(m => m > bedrag) || null;
+
+  return { dagBruto, rekenTotalen, maandReken, toeslagFractie, blokken, opKantoor, gemengd, urenPerLocatie, mijlpaal, volgendeMijlpaal, MIJLPALEN, PREMIE, ZONDAG_TOESLAG };
 });
