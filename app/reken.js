@@ -13,9 +13,13 @@
   const PREMIE = { pensioenPct: 0.0948, pensioenFranchisePerUur: 1018.53 / 126, paww: 0.001, wga: 0.0064 };
 
   const ZONDAG_TOESLAG = 0.5;
+  // Een betaalde vakantiedag heeft geen werktijden: alleen een aantal betaalde uren. Die uren
+  // tellen als gewoon loon (dus ook pensioengevend en met vakantiegeld), maar zonder reiskosten
+  // (je hebt niet gereisd) en zonder zondagtoeslag (vakantie wordt op werkdagen geschreven).
+  const isVakantie = dag => !!dag && dag.soort === 'vakantie';
   const isZondag = datum => new Date(datum + 'T00:00:00').getDay() === 0;
   function toeslagFractie(dag, inst) {
-    if (!isZondag(dag.datum)) return 0;
+    if (isVakantie(dag) || !isZondag(dag.datum)) return 0;
     const aan = dag.zondagToeslag != null ? dag.zondagToeslag : !!(inst && inst.zondagToeslag);
     return aan ? ZONDAG_TOESLAG : 0;
   }
@@ -24,6 +28,7 @@
   // rest in `extra`. Een extra blok zonder eigen locatie erft die van de dag, zodat dagen van
   // vóór de gemengde dag (deels kantoor, deels thuis) exact hetzelfde blijven rekenen.
   function blokken(dag) {
+    if (isVakantie(dag)) return [];
     const rest = (dag.extra || []).map(e => ({ van: e.van, tot: e.tot, locatie: e.locatie || dag.locatie }));
     return [{ van: dag.van, tot: dag.tot, locatie: dag.locatie }].concat(rest);
   }
@@ -39,6 +44,11 @@
   }
 
   function dagBruto(dag, inst) {
+    if (isVakantie(dag)) {
+      const u = Math.max(0, Number(dag.uren) || 0);
+      const basisloon = u * inst.uurloon;
+      return { datum: dag.datum, vakantie: true, klokuren: u, betaaldeUren: u, basisloon, toeslag: 0, reiskosten: 0, brutoBelastbaar: basisloon, btLoon: 0 };
+    }
     const bl = blokken(dag);
     const klok = bl.reduce((s, b) => s + uren.klokuren(b.van, b.tot), 0);
     const betaald = bl.length > 1 ? klok : uren.betaaldeUren(klok);
@@ -102,5 +112,5 @@
   // niet alleen als je er overheen gaat.
   const volgendeMijlpaal = bedrag => MIJLPALEN.find(m => m > bedrag) || null;
 
-  return { dagBruto, rekenTotalen, maandReken, toeslagFractie, blokken, opKantoor, gemengd, urenPerLocatie, mijlpaal, volgendeMijlpaal, MIJLPALEN, PREMIE, ZONDAG_TOESLAG };
+  return { dagBruto, rekenTotalen, maandReken, toeslagFractie, blokken, opKantoor, gemengd, urenPerLocatie, isVakantie, mijlpaal, volgendeMijlpaal, MIJLPALEN, PREMIE, ZONDAG_TOESLAG };
 });

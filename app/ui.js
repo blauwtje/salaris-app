@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const deps = r => [r.util, r.uren, r.reken, r.state, r.kalender, r.feestdagen, r.thema, r.periode, r.cao];
+  const deps = r => [r.util, r.uren, r.reken, r.state, r.kalender, r.feestdagen, r.thema, r.periode, r.cao, r.vakantie];
   if (typeof module !== 'undefined' && module.exports) module.exports = factory();
   else { root.Salaris = root.Salaris || {}; root.Salaris.ui = factory(...deps(root.Salaris)); }
-})(typeof self !== 'undefined' ? self : this, function (util, uren, reken, state, kalender, feestdagen, thema, periode, cao) {
+})(typeof self !== 'undefined' ? self : this, function (util, uren, reken, state, kalender, feestdagen, thema, periode, cao, vakantie) {
   const S = typeof self !== 'undefined' ? self.Salaris : {};
   const U = util || S.util;
   const REK = reken || S.reken;
@@ -13,6 +13,7 @@
   const TH = thema || S.thema;
   const PER = periode || S.periode;
   const CAO = cao || S.cao;
+  const VAK = vakantie || S.vakantie;
 
   const MAAND = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
   const MAAND_KORT = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
@@ -59,6 +60,7 @@
     pijlOp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
     pijlNeer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>',
     min: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14"/></svg>',
+    vrij: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v2M5.2 7.8l1.4 1.4M18.8 7.8l-1.4 1.4M7 16a5 5 0 0 1 10 0"/><path d="M2 16h20M4 20h16"/></svg>',
     raster: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
   };
   const THEMA_ICON = { systeem: ICON.laptop, licht: ICON.sun, donker: ICON.moon, zwart: ICON.oled };
@@ -130,6 +132,10 @@
     const iconen = soort === 'gemengd' ? ICON.kantoor + ICON.thuis : (soort === 'kantoor' ? ICON.kantoor : ICON.thuis);
     return `<span class="loc-ic ${soort}" title="${LOC_TEKST[soort]}"><span class="sr-only">${LOC_TEKST[soort]}</span>${iconen}</span>`;
   }
+  // Vakantie heeft geen locatie en geen werktijden: één eigen icoon, overal hetzelfde.
+  const isVak = d => REK.isVakantie(d);
+  const vakUren = d => Math.max(0, Number(d && d.uren) || 0);
+  const vakantieIcoonHTML = () => `<span class="loc-ic vrij" title="Vakantie"><span class="sr-only">Vakantie</span>${ICON.vrij}</span>`;
   // "5,0u kantoor · 2,0u thuis" - alleen bij een gemengde dag; anders zegt het icoon het al.
   function locatieSplitTekst(dagData) {
     const u = REK.urenPerLocatie(dagData);
@@ -147,7 +153,7 @@
   // diensttijd, plus de reiskosten in één keer zodra de dag begonnen is (die hangen aan de rit,
   // niet aan de uren). Geeft null als er vandaag niets staat.
   function verdiendVandaag(state, iso, nuMin, weergave) {
-    const d = state.dagen[iso]; if (!d) return null;
+    const d = state.dagen[iso]; if (!d || isVak(d)) return null;
     const pd = dagResultaat(state, iso); if (!pd) return null;
     const v = UR.voortgangShifts(REK.blokken(d), nuMin);
     const totaal = weergave === 'bruto' ? pd.bruto : pd.netto;
@@ -346,6 +352,13 @@
 
   function vandaagWidgetHTML(maat, D, inert) {
     const { live, vd, weergave, vandaagIso, nuMin } = D;
+    if (vd && isVak(vd)) {
+      return `<div class="wg vandaag vrij maat-${maat}">
+        <span class="wg-kop"><span class="wg-ic">${ICON.vrij}</span><span class="wg-l">Vakantie vandaag</span></span>
+        <span class="teller">${U.fmtEuro(bedragVoorDag(D.state, vandaagIso, weergave))}<small>${weergave}</small></span>
+        ${maat === 'klein' ? `<span class="wg-s">${U.fmtUren(vakUren(vd))} betaald</span>` : `<p class="leeg-tekst">${U.fmtUren(vakUren(vd))} betaald. Geen werktijden, geen reiskosten.</p>`}
+      </div>`;
+    }
     if (!vd || !live) {
       return `<div class="wg vandaag leeg maat-${maat}">
         <span class="wg-kop"><span class="wg-ic">${ICON.klok}</span><span class="wg-l">Werkdag vandaag</span></span>
@@ -354,9 +367,9 @@
       </div>`;
     }
     const v = live.voortgang;
-    const meta = v.status === 'voor' ? `begint om ${v.eersteVan}`
+    const meta = v.status === 'voor' ? `begint om ${U.fmtTijd(v.eersteVan)}`
       : v.status === 'klaar' ? 'werkdag klaar'
-      : v.status === 'pauze' ? `pauze · verder om ${v.volgendeVan}`
+      : v.status === 'pauze' ? `pauze · verder om ${U.fmtTijd(v.volgendeVan)}`
       : `nog ${resterend(v.resterendeMin)}`;
     const kop = `<span class="wg-kop"><span class="wg-ic">${ICON.klok}</span><span class="wg-l">Werkdag vandaag</span>${live.bezig ? '<span class="live"><span class="pd"></span>Bezig</span>' : locatieIcoonHTML(locatieSoort(vd))}</span>`;
     const teller = `<span class="teller">${U.fmtEuro(live.nu)}<small>${v.status === 'klaar' ? weergave : `${weergave} tot nu`}</small></span>`;
@@ -367,7 +380,7 @@
     const blokRegels = REK.blokken(vd).map(s => {
       const bezigNu = nuMin >= U.parseTime(s.van) && nuMin < U.parseTime(s.tot);
       const eigen = s.locatie === 'kantoor' ? 'kantoor' : 'thuis';
-      return `<div class="db${bezigNu ? ' nu' : ''}"><span class="db-t">${s.van}–${s.tot}</span>
+      return `<div class="db${bezigNu ? ' nu' : ''}"><span class="db-t">${U.fmtBereik(s.van, s.tot)}</span>
         <span class="db-w">${locatieIcoonHTML(eigen)}${LOC_TEKST[eigen]}</span>
         <span class="db-u">${U.fmtUren(UR.klokuren(s.van, s.tot))}</span></div>`;
     }).join('');
@@ -437,7 +450,7 @@
       const vd2 = state.dagen[volg]; const dt = new Date(volg + 'T00:00:00');
       const fr = REK.toeslagFractie({ datum: volg, zondagToeslag: vd2.zondagToeslag != null ? vd2.zondagToeslag : undefined }, state.instellingen);
       volgBig = `${U.dagNaam(dt).slice(0, 2)} ${dt.getDate()} ${MAAND_KORT[dt.getMonth()]}`;
-      volgSub = `${U.fmtEuro(bedragVoorDag(state, volg, weergave))} · ${vd2.van}–${vd2.tot}${fr > 0 ? ` · +${Math.round(fr * 100)}%` : ''}`;
+      volgSub = `${U.fmtEuro(bedragVoorDag(state, volg, weergave))} · ${isVak(vd2) ? 'vakantie' : U.fmtBereik(vd2.van, vd2.tot)}${fr > 0 ? ` · +${Math.round(fr * 100)}%` : ''}`;
     }
     const sluitIso = PER.eerstvolgende(vandaagIso, PER.INDIENDAG);
     const betaalIso = PER.eerstvolgende(vandaagIso, PER.BETAALDAG);
@@ -568,7 +581,8 @@
     let onderkop;
     if (live && live.bezig) onderkop = `Je bent bezig. Er staat <b>${U.fmtEuro(live.nu)}</b> ${weergave} op de teller.`;
     else if (live && live.voortgang.status === 'klaar') onderkop = `Werkdag klaar. <b>${U.fmtEuro(live.totaal)}</b> ${weergave} erbij vandaag.`;
-    else if (live) onderkop = `Vandaag van <b>${vd.van}</b> tot <b>${REK.blokken(vd).slice(-1)[0].tot}</b>, ${LOC_TEKST[locatieSoort(vd)].toLowerCase()}.`;
+    else if (live) onderkop = `Vandaag van <b>${U.fmtTijd(vd.van)}</b> tot <b>${U.fmtTijd(REK.blokken(vd).slice(-1)[0].tot)}</b>, ${LOC_TEKST[locatieSoort(vd)].toLowerCase()}.`;
+    else if (vd && isVak(vd)) onderkop = `Vakantie vandaag. <b>${U.fmtUren(vakUren(vd))}</b> betaald, je periode loopt gewoon door.`;
     else if (D.vandaag.getDay() === 0 || D.vandaag.getDay() === 6) onderkop = 'Vrij vandaag. Je periode loopt gewoon door.';
     else if (D.reeks > 0) onderkop = `Je hebt <b>${D.reeks} dagen</b> op rij staan. Vul vandaag in als je gewerkt hebt.`;
     else onderkop = 'Nog geen uren voor vandaag ingevuld.';
@@ -610,7 +624,7 @@
     if (pd) {
       const toesl = c.toeslag > 0 ? `<span class="c-tsl">+${Math.round(c.toeslag * 100)}%</span>` : '';
       werk = `<div class="c-work">
-        <span class="u">${locatieIcoonHTML(locatieSoort(dagData))}${U.fmtUren(c.betaaldeUren)}${toesl}</span>
+        <span class="u">${c.vakantie ? vakantieIcoonHTML() : locatieIcoonHTML(locatieSoort(dagData))}${U.fmtUren(c.betaaldeUren)}${c.vakantie ? '' : toesl}</span>
         <span class="e">${eK(weergave === 'bruto' ? pd.bruto : pd.netto)}</span></div>`;
     }
 
@@ -618,11 +632,15 @@
     if (c.vandaag) cls.push('today');
     if (c.zondag) cls.push('weekend');
     if (c.indiendag) cls.push('start-periode');
-    if (heeftWerk) cls.push('worked');
+    if (heeftWerk) cls.push(c.vakantie ? 'vakantie' : 'worked');
     if (heeftNotitie) cls.push('has-note');
     if (ctx.highlightIso === c.iso) cls.push('flash');
-    const draggable = heeftWerk ? ' draggable="true"' : '';
-    const label = `${c.dagNummer} ${MAAND[new Date(c.iso + 'T00:00:00').getMonth()]}${heeftWerk ? `: ${U.fmtUren(c.betaaldeUren)}, ${LOC_TEKST[locatieSoort(dagData)].toLowerCase()}` : ': nog niets ingevuld'}`;
+    // Een vakantiedag heeft geen werktijden om te slepen of te plakken.
+    const draggable = heeftWerk && !c.vakantie ? ' draggable="true"' : '';
+    const beschrijving = c.vakantie ? `: ${U.fmtUren(c.betaaldeUren)} vakantie`
+      : heeftWerk ? `: ${U.fmtUren(c.betaaldeUren)}, ${LOC_TEKST[locatieSoort(dagData)].toLowerCase()}`
+      : ': nog niets ingevuld';
+    const label = `${c.dagNummer} ${MAAND[new Date(c.iso + 'T00:00:00').getMonth()]}${beschrijving}`;
     return `<button type="button" class="${cls.join(' ')}"${draggable} data-action="dag" data-iso="${c.iso}" aria-label="${esc(label)}">
       <div class="c-top"><span class="num">${c.dagNummer}</span><span class="marks">${marks}</span></div>
       ${werk}
@@ -670,7 +688,8 @@
     const hoofdknop = FD.isFeestdag(vandaagIso) ? ''
       : `<button class="btn primary" data-action="dag" data-iso="${vandaagIso}">${bestaat ? ICON.pen : ICON.plus}<span class="btn-lg">${bestaat ? 'Vandaag aanpassen' : 'Vandaag invullen'}</span><span class="btn-sm">Vandaag</span></button>`;
 
-    return `${paginakopHTML('Kalender', hoofdknop)}
+    const vakantieKnop = `<button class="btn" data-action="vakantie-nieuw">${ICON.vrij}<span class="btn-lg">Vakantie invoeren</span><span class="btn-sm">Vakantie</span></button>`;
+    return `${paginakopHTML('Kalender', vakantieKnop + hoofdknop)}
       <div class="kal-wrap">
         <div class="calcard">
           ${periodeNavHTML(maandNaam(zicht.jaar, zicht.maand), '', { vorige: 'Vorige maand', volgende: 'Volgende maand', nu: 'Vandaag' })}
@@ -773,19 +792,21 @@
     const dagRows = res.perDag.slice().sort((a, b) => a.datum.localeCompare(b.datum)).map(d => {
       const dt = new Date(d.datum + 'T00:00:00');
       const ds = state.dagen[d.datum] || {};
+      const vak = isVak(ds);
       const allShifts = [{ van: ds.van, tot: ds.tot }].concat(ds.extra || []);
-      const tijden = allShifts.filter(s => s.van && s.tot).map(s => `${s.van}–${s.tot}`).join(', ');
+      const tijden = vak ? 'Vakantie' : allShifts.filter(s => s.van && s.tot).map(s => U.fmtBereik(s.van, s.tot)).join(', ');
       const fr = REK.toeslagFractie({ datum: d.datum, zondagToeslag: ds.zondagToeslag != null ? ds.zondagToeslag : undefined }, inst);
-      return `<button type="button" class="dag-row" data-action="goto-dag-flash" data-iso="${d.datum}">
+      return `<button type="button" class="dag-row${vak ? ' vrij' : ''}" data-action="goto-dag-flash" data-iso="${d.datum}">
         <span class="dr-dt">${U.dagNaam(dt).slice(0, 2)} ${dt.getDate()} ${MAAND_KORT[dt.getMonth()]}${fr > 0 ? ` <span class="dr-tsl">+${Math.round(fr * 100)}%</span>` : ''}</span>
         <span class="dr-tijd">${tijden}</span>
-        <span class="dr-loc-t">${locatieIcoonHTML(locatieSoort(ds))}</span>
+        <span class="dr-loc-t">${vak ? vakantieIcoonHTML() : locatieIcoonHTML(locatieSoort(ds))}</span>
         <span class="dr-uren">${U.fmtUren(d.betaaldeUren)}</span>
         <span class="dr-bedrag">${U.fmtEuro(netto ? d.netto : d.bruto)}</span>
       </button>`;
     }).join('');
+    const vakantieDagen = res.perDag.filter(d => d.vakantie).length;
     const dagenCard = dagen ? `<div class="card">
-        <div class="lab">${ICON.week}Gewerkte dagen <span class="lab-extra">${dagen} · ${U.fmtUren(uren)}</span></div>
+        <div class="lab">${ICON.week}${vakantieDagen ? 'Dagen' : 'Gewerkte dagen'} <span class="lab-extra">${vakantieDagen ? `${dagen - vakantieDagen} gewerkt · ${vakantieDagen} vakantie · ` : `${dagen} · `}${U.fmtUren(uren)}</span></div>
         <div class="dag-list">${dagRows}</div>
       </div>` : `<div class="card leeg">
         <div class="lab">${ICON.week}Gewerkte dagen</div>
@@ -892,12 +913,16 @@
       default: return overzichtPage(ctx);
     }
   }
+  // Plakmodus is een tijdelijke stand van de hele app, geen blok in de pagina: de balk zweeft
+  // boven de inhoud (zoals de melding) zodat de kalender zijn volle breedte houdt.
   function shellHTML(ctx) {
-    const klembordHTML = ctx.klembord ? `<div class="klembord-banner">
-        <span>Gekopieerd van <b>${U.dagDatum(new Date(ctx.klembord.iso + 'T00:00:00'))}</b>. Klik op dagen om te plakken</span>
+    const plakbalk = ctx.klembord ? `<div class="plakbalk" role="status">
+        <span class="pb-ic">${ICON.kopie}</span>
+        <span class="pb-t"><b>${U.dagDatum(new Date(ctx.klembord.iso + 'T00:00:00'))}</b> gekopieerd
+          <span class="pb-s">Klik de dagen aan waar deze werktijden op moeten</span></span>
         <button class="btn" data-action="klembord-klaar">Klaar</button>
       </div>` : '';
-    return `<aside class="sb">${sidebarHTML(ctx)}</aside>${klembordHTML}<main id="content" class="content${ctx.binnenkomst ? ' in' : ''}">${pageHTML(ctx)}</main>`;
+    return `<aside class="sb">${sidebarHTML(ctx)}</aside><main id="content" class="content${ctx.binnenkomst ? ' in' : ''}${ctx.klembord ? ' plakt' : ''}">${pageHTML(ctx)}</main>${plakbalk}`;
   }
 
   // ---------- DAG-DETAIL ----------
@@ -908,10 +933,10 @@
     const shifts = [{ van: b.van, tot: b.tot }, ...(b.extra || [])];
     const v = UR.voortgangShifts(shifts, ctx.nuMin);
     const bezig = v.status === 'bezig' || v.status === 'pauze';
-    const meta = v.status === 'voor' ? `begint om ${v.eersteVan}`
+    const meta = v.status === 'voor' ? `begint om ${U.fmtTijd(v.eersteVan)}`
       : v.status === 'klaar' ? 'werkdag klaar'
-      : v.status === 'pauze' ? `pauze · volgende dienst om ${v.volgendeVan}`
-      : `<b>${Math.round(v.pct)}%</b> · nog ${resterend(v.resterendeMin)} tot ${v.huidigeTot}`;
+      : v.status === 'pauze' ? `pauze · volgende dienst om ${U.fmtTijd(v.volgendeVan)}`
+      : `<b>${Math.round(v.pct)}%</b> · nog ${resterend(v.resterendeMin)} tot ${U.fmtTijd(v.huidigeTot)}`;
     return `<div class="card prog-card">
       <div class="prog-meta" style="margin-bottom:.4rem"><span class="lab" style="margin:0">Vandaag</span>${bezig ? '<span class="live"><span class="pd"></span>Bezig</span>' : ''}</div>
       <div class="track"><div class="fill" style="width:${v.pct}%"></div></div>
@@ -1058,7 +1083,7 @@
 
   // Laatst ingevulde dag vóór deze - de bron voor "Zelfde als vorige keer".
   function vorigeWerkdag(state, iso) {
-    const eerder = Object.keys(state.dagen).filter(k => k < iso).sort();
+    const eerder = Object.keys(state.dagen).filter(k => k < iso && !isVak(state.dagen[k])).sort();
     return eerder.length ? eerder[eerder.length - 1] : null;
   }
 
@@ -1100,6 +1125,87 @@
     </div>`;
   }
 
+  // ---------- VAKANTIE ----------
+  // Je voert een periode in, verder niets. Hoeveel uur een vakantiedag betaald wordt staat bij een
+  // nulurencontract nergens vast, dus leidt de app het af uit je eigen weken (zie vakantie.js) en
+  // laat het hier zien vóór je opslaat - een bedrag dat je niet kunt narekenen is niets waard.
+  const VAK_REDEN = {
+    weekend: ['weekenddag', 'weekenddagen'],
+    feestdag: ['feestdag', 'feestdagen'],
+    bestaat: ['dag met eigen uren', 'dagen met eigen uren'],
+    vakantie: ['dag die al vakantie is', 'dagen die al vakantie zijn'],
+  };
+  function vakantieVoorstelHTML(ctx, form) {
+    const { state } = ctx;
+    if (!form.van || !form.tot) return `<div class="hint">Kies je eerste en je laatste vakantiedag. De app rekent daarna uit hoeveel uur je betaald krijgt.</div>`;
+    if (form.tot < form.van) return `<div class="veld-fout">De laatste dag ligt vóór de eerste dag.</div>`;
+    const v = VAK.voorstel(state.dagen, form.van, form.tot);
+    const tel = {};
+    v.overgeslagen.forEach(o => { tel[o.reden] = (tel[o.reden] || 0) + 1; });
+    const overgeslagen = Object.keys(tel).map(k => `${tel[k]} ${VAK_REDEN[k][tel[k] === 1 ? 0 : 1]}`).join(' · ');
+    const voet = overgeslagen ? `<div class="vk-voet">Telt niet mee: ${overgeslagen}.</div>` : '';
+    if (!v.aantal) return `<div class="hint">Tussen deze twee dagen zit geen werkdag om vakantie op te schrijven.</div>${voet}`;
+    if (v.totaalUren <= 0) {
+      return `<div class="veld-fout">De app kan nog geen uren afleiden: in de dertien weken vóór deze vakantie staan geen gewerkte dagen.
+        Vul die eerst in, dan weet je meteen waar dit bedrag vandaan komt.</div>${voet}`;
+    }
+    const rijen = v.regels.map(r => {
+      const d = new Date(r.iso + 'T00:00:00');
+      return `<li><span>${U.dagNaam(d).slice(0, 2)} ${kortDatum(r.iso)}</span><b>${U.fmtUren(r.uren)}</b></li>`;
+    }).join('');
+    return `<div class="resultaat">
+        <span class="lab">Deze vakantie levert op</span>
+        <span class="res-bedrag">${U.fmtEuro(v.totaalUren * state.instellingen.uurloon)}<small>bruto</small></span>
+        <div class="vk-som">${v.aantal} vakantiedag${v.aantal === 1 ? '' : 'en'} · ${U.fmtUren(v.totaalUren)} betaald</div>
+        <ul class="vk-lijst">${rijen}</ul>
+      </div>
+      <div class="hint">Per dag het gemiddelde van dezelfde weekdag in de dertien weken ervoor, want een nulurencontract kent geen vaste week.
+        Een schatting dus: staat er straks iets anders op je loonstrook, boek het verschil dan als correctie.</div>
+      ${voet}`;
+  }
+  function vakantieEditorHTML(ctx, form) {
+    const kan = !!(form.van && form.tot && form.tot >= form.van) && VAK.voorstel(ctx.state.dagen, form.van, form.tot).totaalUren > 0;
+    return `<div class="sheet vak-sheet" role="dialog" aria-modal="true" aria-label="Vakantie invoeren" tabindex="-1" autofocus>
+      <div class="sh-head"><div><div class="t">Vakantie invoeren</div>
+          <div class="sh-sub">Weekenden en feestdagen slaat de app over.</div></div>
+        <button class="x" data-action="sluit" aria-label="Sluiten">${ICON.kruis}</button></div>
+      <div class="sec"><div class="lab">${ICON.vrij}Van wanneer tot wanneer</div>
+        <div class="vk-rij">
+          <label class="tv-lab">Eerste dag<input class="tv-in datum" type="date" id="vakantie-van" data-action="vakantie-datum" value="${form.van || ''}" aria-label="Eerste vakantiedag"></label>
+          <label class="tv-lab">Laatste dag<input class="tv-in datum" type="date" id="vakantie-tot" data-action="vakantie-datum" value="${form.tot || ''}" aria-label="Laatste vakantiedag"></label>
+        </div>
+      </div>
+      <div class="sec" data-rol="vakantie-voorstel">${vakantieVoorstelHTML(ctx, form)}</div>
+      <div class="actions"><button class="btn primary" data-action="vakantie-opslaan" data-rol="vakantie-opslaan"${kan ? '' : ' disabled'}>${ICON.vink}Vakantie opslaan</button></div>
+    </div>`;
+  }
+  // Een vakantiedag heeft niets in te vullen: 'ie laat zien wat 'ie oplevert en kan weg, alleen of
+  // in één keer met de hele vakantie eromheen.
+  function vakantieDagHTML(iso, ctx) {
+    const { state } = ctx;
+    const dag = state.dagen[iso] || {};
+    const dt = new Date(iso + 'T00:00:00');
+    const p = PER.periodeVoorDatum(iso);
+    const pd = dagResultaat(state, iso);
+    const netto = ctx.weergave === 'netto';
+    const reeks = VAK.reeks(state.dagen, iso);
+    return `<div class="sheet vak-sheet" role="dialog" aria-modal="true" aria-label="Vakantiedag" tabindex="-1" autofocus>
+      <div class="sh-head"><div><div class="t">${U.dagNaam(dt)} ${dt.getDate()} ${MAAND[dt.getMonth()]} <span class="chip">Vakantie</span></div>
+          <div class="sh-sub">Telt mee voor het salaris van ${kortDatum(PER.grenzen(p.jaar, p.maand).betaaldag)}</div></div>
+        <button class="x" data-action="sluit" aria-label="Sluiten">${ICON.kruis}</button></div>
+      <div class="resultaat">
+        <span class="lab">Deze dag levert op</span>
+        <span class="res-bedrag">${U.fmtEuro(pd ? (netto ? pd.netto : pd.bruto) : 0)}<small>${netto ? 'netto' : 'bruto'}</small></span>
+        <div class="vk-som">${U.fmtUren(vakUren(dag))} betaald · geen reiskosten</div>
+      </div>
+      <div class="hint">Afgeleid van wat je op deze weekdag gemiddeld werkte in de dertien weken ervoor.</div>
+      <div class="actions">
+        <button class="btn danger" data-action="vakantie-dag-del" data-iso="${iso}">${ICON.prul}Deze dag weghalen</button>
+        ${reeks.length > 1 ? `<button class="btn" data-action="vakantie-reeks-del" data-iso="${iso}">${ICON.prul}Hele vakantie (${reeks.length})</button>` : ''}
+      </div>
+    </div>`;
+  }
+
   function profielKiezerHTML(ctx) {
     const lijst = ctx.profielen || [];
     const kaarten = lijst.map(p => `<button class="profiel-kaart ${ctx.profiel === p.id ? 'on' : ''}" data-action="kies-profiel" data-id="${p.id}">
@@ -1120,5 +1226,5 @@
     return `<div class="meld ${m.soort || ''}">${esc(m.tekst)}${knop}</div>`;
   }
 
-  return { shellHTML, pageHTML, widgetGallerijHTML, widgetNaam: id => (WIDGETS[id] || {}).naam || id, dagDetailHTML, resultaatHTML, samenvattingHTML, reiskostenUitlegHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, correctieEditorHTML, profielKiezerHTML, meldingHTML };
+  return { shellHTML, pageHTML, widgetGallerijHTML, widgetNaam: id => (WIDGETS[id] || {}).naam || id, dagDetailHTML, resultaatHTML, samenvattingHTML, reiskostenUitlegHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, correctieEditorHTML, vakantieEditorHTML, vakantieVoorstelHTML, vakantieDagHTML, profielKiezerHTML, meldingHTML };
 });

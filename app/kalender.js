@@ -34,6 +34,7 @@
         toeslag: reken.toeslagFractie({ datum: iso, zondagToeslag: (dagen[iso] && dagen[iso].zondagToeslag != null) ? dagen[iso].zondagToeslag : undefined }, inst),
       };
       const data = dagen[iso];
+      cel.vakantie = !!(data && data.soort === 'vakantie');
       if (data && !cel.geblokkeerd) cel.betaaldeUren = reken.dagBruto({ ...data, datum: iso }, inst).betaaldeUren;
       cellen.push(cel);
     }

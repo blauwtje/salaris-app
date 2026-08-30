@@ -119,8 +119,12 @@
   function laadProfiel(store, id) {
     const raw = store.getItem(sleutelVoor(id));
     if (raw) { try { return migreer(JSON.parse(raw)); } catch { return defaultState(); } }
-    // Eenmalige overgang: het eerste profiel erft de oude single-profiel data (van vóór profielen bestonden).
-    if (PROFIELEN.length && id === PROFIELEN[0].id) {
+    // Eenmalige overgang: het eerste profiel erft de oude single-profiel data (van vóór profielen
+    // bestonden). Alleen op een apparaat dat nog nooit met profielen heeft gewerkt: heeft dit
+    // apparaat al een eigen profiel gevuld, dan is de oude sleutel de data van díé persoon en mag
+    // een ander profiel 'm niet erven.
+    const nooitProfielenGebruikt = !PROFIELEN.some(p => store.getItem(sleutelVoor(p.id)));
+    if (PROFIELEN.length && id === PROFIELEN[0].id && nooitProfielenGebruikt) {
       const oud = store.getItem(KEY);
       if (oud) { try { return migreer(JSON.parse(oud)); } catch {} }
     }

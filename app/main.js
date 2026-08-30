@@ -16,6 +16,11 @@
   let versie = 0;
   let syncStaat = S.sync.configured() ? 'bezig' : 'nvt'; // sync staat altijd aan zodra geconfigureerd; geen wachtwoord meer
   let pushTimer = null, pushPending = null;
+  let vakantieForm = null;   // { van, tot } - de lopende invoer in de vakantie-dialoog
+
+  // Staat het apparaat op AM/PM, dan zijn de tijdvelden breder nodig ("09:00 AM" past niet in
+  // de ruimte die "09:00" vraagt). De CSS leest deze klasse; de opgeslagen tijden blijven 24-uurs.
+  document.documentElement.classList.toggle('klok12', S.util.klok12());
 
   const appEl = document.getElementById('app');
   const ovlEl = document.getElementById('overlay');
@@ -122,8 +127,12 @@
       syncStatus('ok'); return;
     }
     const lokaal = tsLokaal(id);
-    // Nooit eerder gesynct op dit apparaat: cloud wint alleen als lokaal leeg is (beschermt bestaande data).
-    const adopt = lokaal ? (new Date(res.updatedAt) > new Date(lokaal)) : !profielHeeftData(appState);
+    // Nooit eerder gesynct op dit apparaat: de cloud wint zodra daar dagen staan. Lokale data
+    // zonder sync-stempel is niet te vertrouwen als bron voor dit profiel (ze kan van de oude
+    // single-profiel opslag geërfd zijn) en mag de gedeelde cloud-versie nooit overschrijven.
+    const adopt = lokaal
+      ? (new Date(res.updatedAt) > new Date(lokaal))
+      : (profielHeeftData(res.state) || !profielHeeftData(appState));
     if (adopt) {
       appState = res.state;
       zetTsLokaal(id, res.updatedAt); S.opslag.bewaarProfiel(store, id, appState);
@@ -251,7 +260,7 @@
   const openOverlay = html => { ovlEl.innerHTML = html; ovlEl.showModal(); };
   const closeOverlay = () => ovlEl.close();
   ovlEl.addEventListener('close', () => {
-    ovlEl.innerHTML = ''; bewerk = null;
+    ovlEl.innerHTML = ''; bewerk = null; vakantieForm = null;
     renderContent();
     if (nieuweWidget) {
       const el = document.querySelector(`.ov-w[data-id="${nieuweWidget}"]`);
@@ -285,6 +294,31 @@
     renderContent();
     meld(`Geplakt op ${S.util.dagDatum(new Date(iso + 'T00:00:00'))}`, { herstel: () => { if (vorige) appState.dagen[iso] = vorige; else delete appState.dagen[iso]; } });
     setTimeout(wisFlash, 1600);
+  }
+  // ---------- vakantie ----------
+  function openVakantie() {
+    const vandaag = S.util.isoDate(new Date());
+    vakantieForm = { van: vandaag, tot: vandaag };
+    openOverlay(S.ui.vakantieEditorHTML(ctx(), vakantieForm));
+  }
+  function openVakantieDag(iso) { bewerk = null; openOverlay(S.ui.vakantieDagHTML(iso, ctx())); }
+  function patchVakantie() {
+    if (!vakantieForm) return;
+    const vak = ovlEl.querySelector('[data-rol="vakantie-voorstel"]');
+    if (vak) vak.innerHTML = S.ui.vakantieVoorstelHTML(ctx(), vakantieForm);
+    const knop = ovlEl.querySelector('[data-rol="vakantie-opslaan"]');
+    if (knop) {
+      const v = S.vakantie.voorstel(appState.dagen, vakantieForm.van, vakantieForm.tot);
+      knop.disabled = !(v.aantal && v.totaalUren > 0);
+    }
+  }
+  // Verwijdert een reeks vakantiedagen in één keer, met dezelfde herstel-melding als één dag.
+  function verwijderVakantie(isos, tekst) {
+    const vorige = {};
+    isos.forEach(iso => { vorige[iso] = appState.dagen[iso]; delete appState.dagen[iso]; });
+    bewaar();
+    meld(tekst, { herstel: () => { Object.keys(vorige).forEach(iso => { appState.dagen[iso] = vorige[iso]; }); } });
+    closeOverlay();
   }
   function syncNotitie() { const t = ovlEl.querySelector('#notitie'); if (t && bewerk) bewerk.notitie = t.value; }
   function patchVoortgang() {
@@ -394,7 +428,12 @@
     }
     if (a === 'goto-dag') { const iso = el.dataset.iso; const d = new Date(iso + 'T00:00:00'); zicht = { jaar: d.getFullYear(), maand: d.getMonth() + 1 }; pagina = 'kalender'; renderApp({ binnenkomst: true }); return; }
     if (a === 'goto-dag-flash') { const iso = el.dataset.iso; if (!iso) return; const d = new Date(iso + 'T00:00:00'); zicht = { jaar: d.getFullYear(), maand: d.getMonth() + 1 }; pagina = 'kalender'; highlightIso = iso; renderApp({ binnenkomst: true }); setTimeout(wisFlash, 1600); return; }
-    if (a === 'dag') { const iso = el.dataset.iso; if (klembord) { plakOpDag(iso); return; } openDag(iso); return; }
+    if (a === 'dag') {
+      const iso = el.dataset.iso;
+      if (klembord) { plakOpDag(iso); return; }
+      if (S.reken.isVakantie(appState.dagen[iso])) { openVakantieDag(iso); return; }
+      openDag(iso); return;
+    }
     if (a === 'holi') { meld(el.dataset.naam + ' is geen werkdag'); return; }
     if (a === 'klembord-klaar') { klembord = null; renderApp(); return; }
     if (a === 'sluit') { closeOverlay(); return; }
@@ -434,6 +473,32 @@
       renderContent();
       return;
     }
+    // vakantie
+    if (a === 'vakantie-nieuw') { openVakantie(); return; }
+    if (a === 'vakantie-opslaan') {
+      if (!vakantieForm) return;
+      const v = S.vakantie.voorstel(appState.dagen, vakantieForm.van, vakantieForm.tot);
+      if (!v.aantal || v.totaalUren <= 0) return;
+      const isos = v.regels.map(r => r.iso);
+      // De uren worden nu vastgelegd: later een oude week aanpassen mag een vakantie die al
+      // ingediend is niet met terugwerkende kracht anders laten uitpakken.
+      v.regels.forEach(r => { appState.dagen[r.iso] = { soort: 'vakantie', uren: r.uren }; });
+      bewaar();
+      const eerste = isos[0];
+      zicht = { jaar: +eerste.slice(0, 4), maand: +eerste.slice(5, 7) };
+      vakantieForm = null;
+      meld(`${v.aantal} vakantiedag${v.aantal === 1 ? '' : 'en'} · ${S.util.fmtUren(v.totaalUren)} betaald`, {
+        herstel: () => { isos.forEach(iso => delete appState.dagen[iso]); },
+      });
+      closeOverlay();
+      return;
+    }
+    if (a === 'vakantie-dag-del') { verwijderVakantie([el.dataset.iso], 'Vakantiedag weggehaald'); return; }
+    if (a === 'vakantie-reeks-del') {
+      const isos = S.vakantie.reeks(appState.dagen, el.dataset.iso);
+      verwijderVakantie(isos, `${isos.length} vakantiedagen weggehaald`);
+      return;
+    }
     // dag-detail
     if (bewerk) {
       // Locatie hangt aan het blok, niet aan de dag: 9–12 kantoor en 16–18 thuis is één dag.
@@ -444,7 +509,7 @@
         patchDag(); return;
       }
       if (a === 'dag-vorige') {
-        const bron = Object.keys(appState.dagen).filter(k => k < bewerk.iso).sort().pop();
+        const bron = Object.keys(appState.dagen).filter(k => k < bewerk.iso && !S.reken.isVakantie(appState.dagen[k])).sort().pop();
         if (!bron) return;
         const d = appState.dagen[bron];
         bewerk.van = d.van; bewerk.tot = d.tot; bewerk.locatie = d.locatie || 'kantoor';
@@ -521,6 +586,14 @@
   });
   document.addEventListener('change', e => {
     const t = e.target;
+    if (t.dataset && t.dataset.action === 'vakantie-datum' && vakantieForm) {
+      vakantieForm.van = (document.getElementById('vakantie-van') || {}).value || '';
+      vakantieForm.tot = (document.getElementById('vakantie-tot') || {}).value || '';
+      // Eén datum invullen bedoelt bijna altijd één dag vrij; de tweede volgt dan vanzelf.
+      if (vakantieForm.van && !vakantieForm.tot) { vakantieForm.tot = vakantieForm.van; document.getElementById('vakantie-tot').value = vakantieForm.tot; }
+      patchVakantie();
+      return;
+    }
     if (t.id === 'set-reis') {
       const v = parseFloat(String(t.value).replace(',', '.'));
       if (isNaN(v) || v < 0) { t.value = String(appState.instellingen.reiskostenPerKantoordag); meld('Vul een bedrag in, bijv. 15,50', { soort: 'fout' }); return; }
@@ -659,7 +732,7 @@
     if (ovlEl.open) { patchVoortgang(); return; }
     if (pagina !== 'overzicht' && pagina !== 'kalender') return;
     const vd = appState.dagen[S.util.isoDate(new Date())];
-    const status = vd ? S.uren.voortgangShifts(S.reken.blokken(vd), nuMin()).status : null;
+    const status = vd && !S.reken.isVakantie(vd) ? S.uren.voortgangShifts(S.reken.blokken(vd), nuMin()).status : null;
     if (S.uren.intervalMoetVerversen(laatsteProgStatus, status)) renderContent();
     laatsteProgStatus = status;
   }, 60000);

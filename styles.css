@@ -17,6 +17,7 @@
   --accent-tekst:color-mix(in srgb, var(--accent) 86%, #000);
   --verdiend-tekst:color-mix(in srgb, var(--verdiend) 86%, #000);
   --sun:#B26B00; --sun-ink:#7A4B00; --suntint:color-mix(in srgb, #F59E0B 14%, transparent);
+  --vrij:#0E8F86; --vrijtint:color-mix(in srgb, #14B8A6 13%, transparent);
   --danger:#DC3A45; --weekend:color-mix(in srgb, var(--text) 3.5%, transparent);
   --disabledInk:#9098A8;
   --shadow:0 1px 2px rgba(20,26,42,.05), 0 6px 18px rgba(20,26,42,.07);
@@ -51,6 +52,7 @@ html[data-theme="dark"]{
   --accent-tekst:color-mix(in srgb, var(--accent) 62%, #fff);
   --verdiend-tekst:color-mix(in srgb, var(--verdiend) 62%, #fff);
   --sun:#F0B254; --sun-ink:#F5C26B; --suntint:color-mix(in srgb, #F59E0B 20%, transparent);
+  --vrij:#4FD1C5; --vrijtint:color-mix(in srgb, #14B8A6 18%, transparent);
   --danger:#FF6166; --weekend:rgba(255,255,255,.03);
   --disabledInk:#727A8C;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.36);
@@ -70,6 +72,7 @@ html[data-theme="black"]{
   --accent-tekst:color-mix(in srgb, var(--accent) 62%, #fff);
   --verdiend-tekst:color-mix(in srgb, var(--verdiend) 62%, #fff);
   --sun:#F0B254; --sun-ink:#F5C26B; --suntint:color-mix(in srgb, #F59E0B 20%, transparent);
+  --vrij:#4FD1C5; --vrijtint:color-mix(in srgb, #14B8A6 18%, transparent);
   --danger:#FF6166; --weekend:rgba(255,255,255,.025);
   --disabledInk:#6A7184;
   --shadow:0 1px 2px rgba(0,0,0,.7), 0 8px 26px rgba(0,0,0,.7);
@@ -317,8 +320,20 @@ body.sleept-widget .prullenbak{ display:flex; }
   background:var(--accent); color:var(--accent-ink); }
 .gal-plus svg{ width:17px; height:17px; stroke-width:2.4; }
 /* ---------- kalender-pagina ---------- */
-.klembord-banner{ display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap; margin-bottom:.9rem; padding:.6rem .9rem; border:1.5px solid var(--accent); border-radius:var(--r-input); background:var(--accent-soft); color:var(--text); font-size:.85rem; }
-.klembord-banner .btn{ min-height:34px; padding:0 .8rem; font-size:.82rem; }
+/* Plakmodus: een zwevende balk onderin, buiten de shell-flex. Stond 'ie in de rij, dan gaf de
+   kalender er een halve breedte aan af; nu blijft de maand staan zoals 'ie was. */
+.plakbalk{ position:fixed; left:50%; bottom:calc(var(--sp-5) + 3.4rem + env(safe-area-inset-bottom)); translate:-50% 0; z-index:70;
+  display:flex; align-items:center; gap:.85rem; max-width:min(560px, calc(100vw - 2rem));
+  padding:.5rem .55rem .5rem 1rem; border:1px solid var(--accent); border-radius:99px;
+  background:var(--surf); color:var(--text); box-shadow:var(--shadow-pop);
+  animation:pb-in .22s cubic-bezier(.2,.8,.2,1); }
+.plakbalk .pb-ic{ display:grid; place-items:center; width:30px; height:30px; flex-shrink:0; border-radius:50%; background:var(--accent-soft); color:var(--accent-tekst); }
+.plakbalk .pb-ic svg{ width:15px; height:15px; stroke-width:2; }
+.plakbalk .pb-t{ min-width:0; font-size:.85rem; line-height:1.3; }
+.plakbalk .pb-s{ display:block; color:var(--muted); font-size:.76rem; }
+.plakbalk .btn{ min-height:36px; padding:0 .9rem; font-size:.82rem; flex-shrink:0; }
+.content.plakt{ padding-bottom:6.5rem; }
+@keyframes pb-in{ from{ opacity:0; translate:-50% 14px; } to{ opacity:1; translate:-50% 0; } }
 .kal-wrap{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 260px; gap:1.2rem; }
 .kal-wrap .calcard{ min-height:0; display:flex; flex-direction:column; overflow:hidden; }
 /* De hele maand past altijd: de zes rijen verdelen de beschikbare hoogte onder elkaar in plaats
@@ -394,7 +409,7 @@ body.sleept-widget .prullenbak{ display:flex; }
 .dow-sm{ display:none; }
 .dow b.we{ color:var(--faint); }
 .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
-.cal.plakmodus .c{ cursor:copy; outline:1px dashed var(--accent); outline-offset:-2px; }
+.cal.plakmodus .c:not(.out):not(.holi){ cursor:copy; outline:1px dashed color-mix(in srgb, var(--accent) 55%, transparent); outline-offset:-2px; }
 .c{ position:relative; min-height:84px; border-radius:var(--r-btn); background:var(--surf2); border:1px solid var(--border); display:flex; flex-direction:column; padding:6px 0 6px; overflow:hidden; transition:transform var(--t), box-shadow var(--t), border-color var(--t); font:inherit; color:inherit; text-align:left; width:100%; appearance:none; }
 
 .c-top{ display:flex; align-items:center; justify-content:space-between; padding:0 8px; }
@@ -409,6 +424,11 @@ body.sleept-widget .prullenbak{ display:flex; }
 .c.worked .num{ color:color-mix(in srgb, var(--verdiend) 70%, var(--text)); font-weight:700; }
 .c.worked.weekend{ background:color-mix(in srgb, var(--verdiend) 10%, var(--weekend)); }
 .c.worked.today{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), var(--shadow); }
+/* Betaalde vrije dag: eigen kleur, want dit is geen gewerkte dag maar telt wel mee in het loon. */
+.c.vakantie{ background:color-mix(in srgb, var(--vrij) 12%, var(--surf2)); border-color:color-mix(in srgb, var(--vrij) 30%, var(--border)); }
+.c.vakantie .num{ color:color-mix(in srgb, var(--vrij) 72%, var(--text)); font-weight:700; }
+.c.vakantie .c-work .e{ color:var(--vrij); }
+.c.vakantie.today{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), var(--shadow); }
 .c.has-note { background:color-mix(in srgb,var(--note) 10%,var(--surf2)); }
 .c.has-note.worked { background:color-mix(in srgb,var(--note) 6%,color-mix(in srgb,var(--verdiend) 13%,var(--surf2))); }
 .c.has-note.weekend { background:color-mix(in srgb,var(--note) 8%,var(--weekend)); }
@@ -428,6 +448,7 @@ body.sleept-widget .prullenbak{ display:flex; }
 .loc-ic{ display:inline-flex; align-items:center; gap:1px; color:var(--muted); flex-shrink:0; }
 .loc-ic svg{ width:13px; height:13px; stroke-width:2.1; display:block; }
 .loc-ic.gemengd svg:last-child{ margin-left:-1px; opacity:.85; }
+.loc-ic.vrij{ color:var(--vrij); }
 
 /* gewerkte uren + bedrag onderin */
 .c-work{ margin-top:auto; padding:4px 8px 0; line-height:1.15; min-width:0; }
@@ -622,6 +643,7 @@ input[type=color].swatch::-moz-color-swatch{ border:0; border-radius:var(--r-btn
 .dag-row .dr-uren{ color:var(--muted); font-size:.8rem; font-variant-numeric:tabular-nums; }
 .dag-row .dr-bedrag{ font:700 .88rem var(--head); color:var(--verdiend-tekst); font-variant-numeric:tabular-nums; text-align:right; }
 .dr-tsl { font-size:var(--fs-xs); font-weight:700; color:var(--sun-ink); background:var(--suntint); padding:0 .25rem; border-radius:4px; }
+.dag-row.vrij .dr-tijd{ color:var(--vrij); font-weight:600; }
 
 /* ---- clickable stats cards ---- */
 .card.clickable{ cursor:pointer; user-select:none; }
@@ -652,6 +674,25 @@ input[type=color].swatch::-moz-color-swatch{ border:0; border-radius:var(--r-btn
 .tv-in:focus { outline:0; border-color:var(--accent); background:var(--accent-soft); box-shadow:0 0 0 3px var(--accent-soft); }
 .tv-in::-webkit-calendar-picker-indicator { cursor:pointer; opacity:.55; filter:saturate(0); }
 .tv-in::-webkit-calendar-picker-indicator:hover { opacity:1; }
+/* Staat het apparaat op AM/PM, dan vraagt "09:00 AM" met de klok-knop erachter meer breedte dan
+   "09:00". Het veld wordt dan wat kleiner gezet en de locatie krijgt een eigen regel, zodat er
+   niets meer wegvalt achter de rand. */
+.klok12 .tv-in{ font-size:1.15rem; letter-spacing:0; padding-inline:.25rem; }
+.klok12 .blok-rij{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.klok12 .blok-rij > .tv-lab:last-child{ grid-column:1 / -1; }
+
+/* --- vakantie-dialoog --- */
+.sheet.vak-sheet{ max-width:460px; }
+.vk-rij{ display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+.tv-in.datum{ font-size:1rem; font-family:var(--body); }
+.vk-som{ margin-top:.35rem; font-size:.85rem; color:var(--muted); }
+.vk-lijst{ list-style:none; margin:.75rem 0 0; padding:0; display:flex; flex-direction:column; }
+.vk-lijst li{ display:flex; align-items:center; justify-content:space-between; gap:.6rem; padding:.32rem 0;
+  border-top:1px solid var(--border); font-size:.84rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+.vk-lijst li b{ color:var(--text); }
+.vk-voet{ margin-top:.55rem; font-size:.78rem; color:var(--faint); }
+.wg.vandaag.vrij .wg-ic{ color:var(--vrij); }
+.vak-sheet .sh-head .chip{ background:var(--vrijtint); color:var(--vrij); }
 
 .amount .amt-in { border:none; background:transparent; font:inherit; font-weight:600; color:var(--text); width:84px; outline:none; -moz-appearance:textfield; appearance:none; }
 /* iOS-achtige aan/uit-schakelaar */
@@ -783,12 +824,14 @@ button:focus-visible, a:focus-visible, [data-action]:focus-visible, .swatch:focu
             padding-left:calc(1.1rem + env(safe-area-inset-left)); padding-right:calc(1.1rem + env(safe-area-inset-right));
             padding-bottom:calc(4.2rem + env(safe-area-inset-bottom)); }
   .meld-host{ bottom:calc(4.4rem + env(safe-area-inset-bottom)); }
+  .plakbalk{ bottom:calc(7.8rem + env(safe-area-inset-bottom)); left:1rem; right:1rem; translate:0 0; max-width:none; }
+  @keyframes pb-in{ from{ opacity:0; translate:0 14px; } to{ opacity:1; translate:0 0; } }
   .seg button{ min-height:44px; }
   .note-input{ font-size:16px; }
   .kal-wrap{ grid-template-columns:1fr; }
   .kal-wrap .cal{ grid-auto-rows:auto; }
   .kal-wrap .c{ min-height:64px; }
-  .nav-btn, .calhead .today-btn, .sh-head .x, .btn-icon, .up-row.btn-row, .klembord-banner .btn{ min-height:44px; }
+  .nav-btn, .calhead .today-btn, .sh-head .x, .btn-icon, .up-row.btn-row, .plakbalk .btn{ min-height:44px; }
   .sw, .sw-custom, .kl-reset{ width:44px; height:44px; }
   input[type=color].swatch{ width:44px; height:44px; }
   .ovl[open]{ align-items:flex-end; padding:0; }
@@ -818,6 +861,8 @@ button:focus-visible, a:focus-visible, [data-action]:focus-visible, .swatch:focu
   .dag-row .dr-uren{ grid-area:uren; text-align:right; }
   .paginakop{ gap:.6rem; }
   .paginakop h2{ font-size:1.4rem; }
+  .paginakop .spacer{ flex-basis:100%; height:0; }
+  .paginakop > .btn{ flex:1 1 0; min-width:0; justify-content:center; }
   .btn-lg{ display:none; }
   .btn-sm{ display:inline; }
 }
@@ -988,7 +1033,7 @@ button:focus-visible, a:focus-visible, [data-action]:focus-visible, .swatch:focu
    1024px breed en toch een touchscreen. Doelen van 44px en 16px invoertekst (anders zoomt iOS in). */
 @media (pointer:coarse){
   .btn, .seg button, .nav-btn, .calhead .today-btn, .sh-head .x, .btn-icon,
-  .up-row.btn-row, .klembord-banner .btn, .lab-knop, .dag-row{ min-height:44px; }
+  .up-row.btn-row, .plakbalk .btn, .lab-knop, .dag-row{ min-height:44px; }
   .sw, .sw-custom, .kl-reset, input[type=color].swatch{ width:44px; height:44px; }
   .ov-weg{ width:34px; height:34px; top:-11px; left:-11px; }
   .maat-btn{ width:38px; height:32px; }
