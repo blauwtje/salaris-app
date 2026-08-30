@@ -19,6 +19,8 @@
         standaardWeergave: 'netto', loonheffingskorting: true,
         thema: 'systeem', accent: '#6C63FF',
         zondagToeslag: false,
+        // Uren per vakantiedag: uit betekent afleiden uit je eigen dertien weken (zie vakantie.js).
+        vakantieUrenVast: false, vakantieUrenPerDag: 8,
         themaOverrides: {},
         overzichtIndeling: 3, // versie van de standaard-indeling; zie migreer()
         // Elke widget heeft een maat: klein (1x1), breed (2x1) of groot (2x2). Standaard staan

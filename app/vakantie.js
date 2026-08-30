@@ -8,11 +8,21 @@
   // Maatstaf is de referteperiode van dertien weken die payroll ook gebruikt: het gemiddelde van
   // dezelfde weekdag in de dertien weken vóór de vakantiedag. Weken waarin helemaal niets stond
   // (vorige vakantie, ziek) tellen niet mee - die zouden het gemiddelde ten onrechte drukken.
+  // Dat gemiddelde valt laag uit zodra je niet elke week dezelfde dagen werkt: een maandag die je
+  // 7 van de 13 weken werkte levert 7/13 dienst op. Wie zijn vakantiedag wél kent, zet hem daarom
+  // in de instellingen vast (`vakantieUrenVast` + `vakantieUrenPerDag`).
   const WEKEN = 13;
   const MAX_DAGEN = 120; // een vakantie beslaat nooit meer dan een paar maanden; harde grens tegen doorlopen
   const datum = iso => new Date(iso + 'T00:00:00');
   const isWeekend = d => d.getDay() === 0 || d.getDay() === 6;
   const r1 = n => Math.round(n * 10) / 10;
+
+  // Wie wél weet wat een vakantiedag waard is, zet het in de instellingen vast. Dat wint van het
+  // gemiddelde: een dertienwekengemiddelde over een halfgevulde historie schat te laag.
+  function vasteUren(inst) {
+    if (!inst || !inst.vakantieUrenVast) return 0;
+    return Math.max(0, r1(Number(inst.vakantieUrenPerDag) || 0));
+  }
 
   function urenOpDag(dagen, iso) { const d = dagen[iso]; return d ? state.betaaldVan(d) : 0; }
   // Verste dag waar uren staan. Alles daarna is nog niet ingevuld, niet "niet gewerkt": een
@@ -55,9 +65,9 @@
   // Wat een vakantie van `vanIso` t/m `totIso` oplevert. Weekenden tellen niet mee (je schrijft
   // alleen werkdagen op), feestdagen ook niet (die zijn al vrij) en dagen waar al uren staan
   // blijven staan - overschrijven zou stilletjes werk wissen.
-  function voorstel(dagen, vanIso, totIso, weken) {
-    const regels = [], overgeslagen = [];
-    if (!vanIso || !totIso || totIso < vanIso) return { regels, overgeslagen, totaalUren: 0, aantal: 0, zonderHistorie: false };
+  function voorstel(dagen, vanIso, totIso, inst, weken) {
+    const regels = [], overgeslagen = [], vast = vasteUren(inst);
+    if (!vanIso || !totIso || totIso < vanIso) return { regels, overgeslagen, totaalUren: 0, aantal: 0, zonderHistorie: false, vast: vast > 0 };
     const eind = datum(totIso);
     const d = datum(vanIso);
     for (let i = 0; i < MAX_DAGEN && d <= eind; i++) {
@@ -65,11 +75,13 @@
       if (isWeekend(d)) overgeslagen.push({ iso, reden: 'weekend' });
       else if (feestdagen.isFeestdag(iso)) overgeslagen.push({ iso, reden: 'feestdag' });
       else if (dagen[iso]) overgeslagen.push({ iso, reden: dagen[iso].soort === 'vakantie' ? 'vakantie' : 'bestaat' });
+      else if (vast > 0) regels.push({ iso, uren: vast, weken: null });
       else regels.push({ iso, ...gemiddeldeUren(dagen, iso, weken) });
       d.setDate(d.getDate() + 1);
     }
     const totaalUren = r1(regels.reduce((s, r) => s + r.uren, 0));
-    return { regels, overgeslagen, totaalUren, aantal: regels.length, zonderHistorie: regels.length > 0 && regels.every(r => r.weken === 0) };
+    const zonderHistorie = vast === 0 && regels.length > 0 && regels.every(r => r.weken === 0);
+    return { regels, overgeslagen, totaalUren, aantal: regels.length, zonderHistorie, vast: vast > 0 };
   }
 
   // Alle vakantiedagen die aan `iso` vastzitten, zodat je een hele vakantie in één keer weghaalt.
@@ -92,5 +104,5 @@
     return gevonden.sort();
   }
 
-  return { WEKEN, gemiddeldeUren, voorstel, reeks };
+  return { WEKEN, vasteUren, gemiddeldeUren, voorstel, reeks };
 });

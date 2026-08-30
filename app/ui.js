@@ -824,6 +824,7 @@
   // ---------- INSTELLINGEN ----------
   // Toont het bedrag met komma (Nederlands); main.js accepteert bij invoer zowel komma als punt.
   function geldVeld(id, val, label) { return `<div class="amount"><span class="e">€</span><input id="${id}" class="amt-in" type="text" inputmode="decimal" value="${Number(val).toFixed(2).replace('.', ',')}" aria-label="${esc(label)}"></div>`; }
+  function urenVeld(id, val, label) { return `<div class="amount"><input id="${id}" class="amt-in" type="text" inputmode="decimal" value="${(Math.round(Number(val) * 10) / 10).toFixed(1).replace('.', ',')}" aria-label="${esc(label)}"><span class="e">u</span></div>`; }
   function switchHTML(action, aan) {
     return `<button class="switch ${aan ? 'on' : ''}" data-action="${action}" role="switch" aria-checked="${aan}" aria-label="${aan ? 'Aan' : 'Uit'}"><span class="sw-knob"></span><span class="sw-tekst">${aan ? 'Aan' : 'Uit'}</span></button>`;
   }
@@ -861,6 +862,8 @@
       <div class="hint" style="margin-top:.5rem">Exclusief vakantiegeld (8%), dat in mei apart wordt uitbetaald.</div>
       <div class="set-row" style="margin-top:.6rem"><div class="info"><div class="name">Reiskosten per kantoordag</div><div class="hint">Onbelaste vergoeding, alleen op dagen op kantoor.</div></div>${geldVeld('set-reis', i.reiskostenPerKantoordag, 'Reiskosten per kantoordag')}</div>
       <div class="set-row"><div class="info"><div class="name">Zondagtoeslag +50%</div><div class="hint">Standaard op zondagen; per zondag aan of uit in de kalender.</div></div>${switchHTML('set-zondagtoeslag', !!i.zondagToeslag)}</div>
+      <div class="set-row"><div class="info"><div class="name">Vaste uren per vakantiedag</div><div class="hint">Uit: de app leidt de uren af uit dezelfde weekdag in je eigen dertien weken. Werk je wisselende dagen, dan schat dat te laag.</div></div>${switchHTML('set-vakantie-vast', !!i.vakantieUrenVast)}</div>
+      ${i.vakantieUrenVast ? `<div class="set-row"><div class="info"><div class="name">Uren per vakantiedag</div><div class="hint">Een hele week vrij is dan ${U.fmtUren(5 * (Number(i.vakantieUrenPerDag) || 0))} betaald.</div></div>${urenVeld('set-vakantie-uren', i.vakantieUrenPerDag, 'Uren per vakantiedag')}</div>` : ''}
     </section>`;
   }
 
@@ -1139,7 +1142,7 @@
     const { state } = ctx;
     if (!form.van || !form.tot) return `<div class="hint">Kies je eerste en je laatste vakantiedag. De app rekent daarna uit hoeveel uur je betaald krijgt.</div>`;
     if (form.tot < form.van) return `<div class="veld-fout">De laatste dag ligt vóór de eerste dag.</div>`;
-    const v = VAK.voorstel(state.dagen, form.van, form.tot);
+    const v = VAK.voorstel(state.dagen, form.van, form.tot, state.instellingen);
     const tel = {};
     v.overgeslagen.forEach(o => { tel[o.reden] = (tel[o.reden] || 0) + 1; });
     const overgeslagen = Object.keys(tel).map(k => `${tel[k]} ${VAK_REDEN[k][tel[k] === 1 ? 0 : 1]}`).join(' · ');
@@ -1159,12 +1162,14 @@
         <div class="vk-som">${v.aantal} vakantiedag${v.aantal === 1 ? '' : 'en'} · ${U.fmtUren(v.totaalUren)} betaald</div>
         <ul class="vk-lijst">${rijen}</ul>
       </div>
-      <div class="hint">Per dag het gemiddelde van dezelfde weekdag in de dertien weken ervoor, want een nulurencontract kent geen vaste week.
+      <div class="hint">${v.vast
+        ? `Elke vakantiedag telt voor ${U.fmtUren(state.instellingen.vakantieUrenPerDag)}, zoals je in Instellingen hebt gezet.`
+        : 'Per dag het gemiddelde van dezelfde weekdag in de dertien weken ervoor, want een nulurencontract kent geen vaste week.'}
         Een schatting dus: staat er straks iets anders op je loonstrook, boek het verschil dan als correctie.</div>
       ${voet}`;
   }
   function vakantieEditorHTML(ctx, form) {
-    const kan = !!(form.van && form.tot && form.tot >= form.van) && VAK.voorstel(ctx.state.dagen, form.van, form.tot).totaalUren > 0;
+    const kan = !!(form.van && form.tot && form.tot >= form.van) && VAK.voorstel(ctx.state.dagen, form.van, form.tot, ctx.state.instellingen).totaalUren > 0;
     return `<div class="sheet vak-sheet" role="dialog" aria-modal="true" aria-label="Vakantie invoeren" tabindex="-1" autofocus>
       <div class="sh-head"><div><div class="t">Vakantie invoeren</div>
           <div class="sh-sub">Weekenden en feestdagen slaat de app over.</div></div>

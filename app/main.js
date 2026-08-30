@@ -308,7 +308,7 @@
     if (vak) vak.innerHTML = S.ui.vakantieVoorstelHTML(ctx(), vakantieForm);
     const knop = ovlEl.querySelector('[data-rol="vakantie-opslaan"]');
     if (knop) {
-      const v = S.vakantie.voorstel(appState.dagen, vakantieForm.van, vakantieForm.tot);
+      const v = S.vakantie.voorstel(appState.dagen, vakantieForm.van, vakantieForm.tot, appState.instellingen);
       knop.disabled = !(v.aantal && v.totaalUren > 0);
     }
   }
@@ -448,6 +448,8 @@
     }
     if (a === 'set-weergave') { appState.instellingen.standaardWeergave = el.dataset.val; bewaar(); renderContent(); return; }
     if (a === 'set-zondagtoeslag') { appState.instellingen.zondagToeslag = !appState.instellingen.zondagToeslag; bewaar(); patchSwitch(el, appState.instellingen.zondagToeslag); return; }
+    // Het urenveld verschijnt of verdwijnt met de schakelaar, dus hier wél een hele render.
+    if (a === 'set-vakantie-vast') { appState.instellingen.vakantieUrenVast = !appState.instellingen.vakantieUrenVast; bewaar(); renderContent(); return; }
     if (a === 'set-schaal' || a === 'set-trede') { zetSchaalTrede(a === 'set-schaal' ? +el.dataset.val : appState.instellingen.schaal, a === 'set-trede' ? +el.dataset.val : appState.instellingen.trede); return; }
     // correcties (loonstrook) - geen dag-detail, eigen kleine overlay
     if (a === 'correctie-nieuw') { openOverlay(S.ui.correctieEditorHTML(ctx())); return; }
@@ -477,7 +479,7 @@
     if (a === 'vakantie-nieuw') { openVakantie(); return; }
     if (a === 'vakantie-opslaan') {
       if (!vakantieForm) return;
-      const v = S.vakantie.voorstel(appState.dagen, vakantieForm.van, vakantieForm.tot);
+      const v = S.vakantie.voorstel(appState.dagen, vakantieForm.van, vakantieForm.tot, appState.instellingen);
       if (!v.aantal || v.totaalUren <= 0) return;
       const isos = v.regels.map(r => r.iso);
       // De uren worden nu vastgelegd: later een oude week aanpassen mag een vakantie die al
@@ -593,6 +595,11 @@
       if (vakantieForm.van && !vakantieForm.tot) { vakantieForm.tot = vakantieForm.van; document.getElementById('vakantie-tot').value = vakantieForm.tot; }
       patchVakantie();
       return;
+    }
+    if (t.id === 'set-vakantie-uren') {
+      const v = parseFloat(String(t.value).replace(',', '.'));
+      if (isNaN(v) || v <= 0 || v > 24) { t.value = String(appState.instellingen.vakantieUrenPerDag).replace('.', ','); meld('Vul een aantal uren in, bijv. 7,2', { soort: 'fout' }); return; }
+      appState.instellingen.vakantieUrenPerDag = Math.round(v * 10) / 10; bewaar(); renderContent(); return;
     }
     if (t.id === 'set-reis') {
       const v = parseFloat(String(t.value).replace(',', '.'));
