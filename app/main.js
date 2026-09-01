@@ -15,6 +15,7 @@
   let profielKiezerVerplicht = false; // eerste keer: profiel kiezen kan niet weggeklikt worden
   let versie = 0;
   let syncStaat = S.sync.configured() ? 'bezig' : 'nvt'; // sync staat altijd aan zodra geconfigureerd; geen wachtwoord meer
+  let syncFout = null;      // HTTP-status van de laatste mislukte sync, voor een leesbare melding
   let pushTimer = null, pushPending = null;
   let vakantieForm = null;   // { van, tot } - de lopende invoer in de vakantie-dialoog
 
@@ -33,10 +34,9 @@
   const bewaar = () => {
     versie++;
     if (!profiel) return;
-    const nu = new Date().toISOString();
-    zetTsLokaal(profiel, nu);
     S.opslag.bewaarProfiel(store, profiel, appState);
-    syncPush(profiel, nu);
+    zetVuil(profiel, true);
+    syncPush(profiel);
   };
   function openProfielKiezer(verplicht) { profielKiezerVerplicht = !!verplicht; openOverlay(S.ui.profielKiezerHTML(ctx())); }
   let melding = null, meldTimer = 0, meldWeg = 0;
@@ -89,62 +89,97 @@
   }
 
   // ---------- cloud-sync (versleuteld, per profiel) ----------
-  const TS_KEY = 'salaris-sync-ts';
-  function tsLokaal(id) { try { return (JSON.parse(localStorage.getItem(TS_KEY) || '{}'))[id] || null; } catch { return null; } }
-  function zetTsLokaal(id, ts) { let m = {}; try { m = JSON.parse(localStorage.getItem(TS_KEY) || '{}'); } catch {} m[id] = ts; localStorage.setItem(TS_KEY, JSON.stringify(m)); }
-  function profielHeeftData(st) { return !!(st && st.dagen && Object.keys(st.dagen).length); }
+  // Per profiel houden we twee dingen bij: BASIS_KEY = het stempel (updated_at) van de rij zoals
+  // wij 'm het laatst gezien of geschreven hebben, en VUIL_KEY = staan er lokale wijzigingen klaar
+  // die de cloud nog niet heeft. Samen vertellen ze precies wie er sinds de laatste verzoening
+  // iets veranderd heeft. Vroeger vergeleken we de klok van het ene apparaat met die van het
+  // andere; liep er eentje voor, dan won die altijd en verdween de invoer van de rest.
+  const BASIS_KEY = 'salaris-sync-basis';
+  const VUIL_KEY = 'salaris-sync-vuil';
+  function kaart(sleutel) { try { return JSON.parse(store.getItem(sleutel) || '{}') || {}; } catch { return {}; } }
+  function zetKaart(sleutel, id, waarde) { const m = kaart(sleutel); m[id] = waarde; store.setItem(sleutel, JSON.stringify(m)); }
+  const basisVan = id => kaart(BASIS_KEY)[id] || null;
+  const zetBasis = (id, stempel) => zetKaart(BASIS_KEY, id, stempel);
+  const isVuil = id => !!kaart(VUIL_KEY)[id];
+  const zetVuil = (id, aan) => zetKaart(VUIL_KEY, id, !!aan);
+  // Eigen opslag betekent: dit apparaat heeft zelf ooit voor dít profiel bewaard. Zonder die
+  // sleutel is `appState` leeg of geërfd van de oude single-profiel opslag, en die mag de
+  // gedeelde rij nooit vullen (dat is de data van iemand anders).
+  const heeftEigenOpslag = id => store.getItem(S.opslag.sleutelVoor(id)) != null;
+
   function syncTekstVan(s) {
     return s === 'ok' ? 'Gesynchroniseerd met de cloud.'
       : s === 'bezig' ? 'Synchroniseren…'
-      : s === 'offline' ? 'Offline. Lokaal opgeslagen, synct later vanzelf.'
+      : s === 'offline' ? (syncFout ? `Sync mislukt (${syncFout}). Lokaal opgeslagen, we blijven het proberen.` : 'Offline. Lokaal opgeslagen, synct later vanzelf.')
       : '';
   }
-  function syncStatus(s) {
-    syncStaat = s;
-    const dot = document.querySelector('.sync-dot');
-    if (dot) { dot.dataset.staat = s; const t = syncTekstVan(s); dot.title = t; dot.setAttribute('aria-label', t); }
+  function syncStatus(s, fout) {
+    syncStaat = s; syncFout = s === 'offline' ? (fout || null) : null;
+    const t = syncTekstVan(s);
+    // Het bolletje staat op twee plekken (logo en profielknop) en de tekst op Instellingen;
+    // alle drie meteen bijwerken, want een render volgt hier niet altijd op.
+    document.querySelectorAll('.sync-dot').forEach(dot => {
+      dot.dataset.staat = s; dot.title = t;
+      if (dot.getAttribute('aria-hidden') !== 'true') dot.setAttribute('aria-label', t);
+    });
+    const tekst = document.querySelector('[data-rol="sync-status"]');
+    if (tekst) tekst.textContent = t;
   }
-  function syncPush(id, ts, snapshot) {
+  // Een mislukte push blijft "vuil" staan, dus de volgende pull (of de klok van 30 seconden)
+  // probeert 'm vanzelf opnieuw. Zonder dat vlaggetje verdween een wijziging stilletjes zodra
+  // het net even wegviel.
+  function syncPush(id, state) {
     if (!SY.configured()) return;
-    pushPending = { id, ts, state: snapshot || appState };
+    pushPending = { id, state: state || appState };
     clearTimeout(pushTimer);
     pushTimer = setTimeout(async () => {
       const job = pushPending; pushPending = null; if (!job) return;
-      try { await SY.push(job.id, job.state, job.ts); syncStatus('ok'); }
-      catch (e) { const wasOffline = syncStaat === 'offline'; syncStatus('offline'); if (!wasOffline) meld('Offline. Lokaal opgeslagen, synct later vanzelf.'); }
+      try {
+        const stempel = await SY.push(job.id, job.state, new Date().toISOString());
+        zetBasis(job.id, stempel); zetVuil(job.id, false);
+        syncStatus('ok');
+      } catch (e) {
+        const wasOffline = syncStaat === 'offline';
+        syncStatus('offline', e && e.code);
+        if (!wasOffline) meld(syncTekstVan('offline'));
+      }
     }, 800);
   }
   async function syncPull(id) {
     if (!SY.configured() || id !== profiel) return;
     let res;
     try { res = await SY.pull(id); }
-    catch (e) { syncStatus('offline'); return; }
+    catch (e) { syncStatus('offline', e && e.code); return; }
     if (id !== profiel) return; // tijdens het wachten van profiel gewisseld
-    // Geen bruikbare cloud-state (lege tabel, of onleesbare rij uit het oude wachtwoord-tijdperk):
-    // duw lokale data omhoog zodat 'ie opnieuw met de app-sleutel versleuteld wordt.
-    if (res === null || res.decryptFailed) {
-      if (profielHeeftData(appState)) { const ts = tsLokaal(id) || new Date().toISOString(); zetTsLokaal(id, ts); syncPush(id, ts); }
-      syncStatus('ok'); return;
-    }
-    const lokaal = tsLokaal(id);
-    // Nooit eerder gesynct op dit apparaat: de cloud wint zodra daar dagen staan. Lokale data
-    // zonder sync-stempel is niet te vertrouwen als bron voor dit profiel (ze kan van de oude
-    // single-profiel opslag geërfd zijn) en mag de gedeelde cloud-versie nooit overschrijven.
-    const adopt = lokaal
-      ? (new Date(res.updatedAt) > new Date(lokaal))
-      : (profielHeeftData(res.state) || !profielHeeftData(appState));
-    if (adopt) {
-      appState = res.state;
-      zetTsLokaal(id, res.updatedAt); S.opslag.bewaarProfiel(store, id, appState);
+    // Een onleesbare rij telt als "geen rij": we schrijven 'm zo meteen opnieuw met de app-sleutel.
+    const rij = (res && !res.decryptFailed) ? res : null;
+    // De rij kan door een oudere versie van de app geschreven zijn; migreren voordat we 'm
+    // samenvoegen of tonen, anders missen er velden die de rest van de app verwacht.
+    const cloud = rij ? S.opslag.migreer(rij.state) : null;
+    const besluit = SY.verzoen({
+      lokaal: appState, cloud, cloudStempel: rij ? rij.updatedAt : null,
+      basis: basisVan(id), vuil: isVuil(id), eigenOpslag: heeftEigenOpslag(id),
+    });
+    if (besluit.actie === 'adopteer') {
+      appState = besluit.state;
+      S.opslag.bewaarProfiel(store, id, appState);
+      zetBasis(id, rij.updatedAt); zetVuil(id, false);
       versie++; pasToeUiterlijk(); renderApp();
-    } else {
-      const ts = tsLokaal(id) || new Date().toISOString(); zetTsLokaal(id, ts); syncPush(id, ts);
+    } else if (besluit.actie === 'push') {
+      if (besluit.state !== appState) {
+        appState = besluit.state;
+        S.opslag.bewaarProfiel(store, id, appState);
+        versie++; pasToeUiterlijk(); renderApp();
+      }
+      zetVuil(id, true);
+      syncPush(id, appState);
+      return; // de push zet zelf 'ok' of 'offline'
     }
     syncStatus('ok');
   }
   function naProfiel() {
     if (!SY.configured()) return;
-    syncStaat = 'bezig'; syncPull(profiel);
+    syncStatus('bezig'); syncPull(profiel);
   }
   function widgetCfg(id) {
     const arr = appState.instellingen.overzichtWidgets || (appState.instellingen.overzichtWidgets = []);
@@ -373,6 +408,7 @@
       pagina = doel; overzichtBewerk = false; renderApp({ binnenkomst: true }); return;
     }
     if (a === 'wissel-profiel') { openProfielKiezer(false); return; }
+    if (a === 'sync-nu') { if (SY.configured()) { syncStatus('bezig'); syncPull(profiel); } return; }
     if (a === 'kies-profiel') {
       const id = el.dataset.id;
       if (id && id !== profiel) {

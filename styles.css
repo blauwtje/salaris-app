@@ -102,6 +102,13 @@ button{ font-family:inherit; cursor:pointer; color:inherit; user-select:none; -w
 .sync-dot[data-staat="offline"]{ background:var(--danger); }
 /* Pulseert alleen tijdens een échte sync, niet als decoratie. */
 .sync-dot[data-staat="bezig"]{ background:var(--accent); animation:pulse 1.6s infinite; }
+/* Tweede plek voor hetzelfde bolletje: op de telefoon is .brand verborgen, de profielknop niet. */
+.pf-avatar{ position:relative; }
+.sync-dot.op-avatar{ display:none; position:absolute; right:-1px; bottom:-1px; margin:0; box-shadow:0 0 0 2px var(--surf2); }
+.sync-rij{ display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+.sync-rij .sync-dot{ margin:0; }
+.sync-status{ flex:1; min-width:12ch; color:var(--muted); font-size:.9rem; }
+.btn-sync{ min-height:40px; padding:0 .9rem; font-size:.86rem; }
 .sb .nav{ display:flex; flex-direction:column; gap:.25rem; }
 .ni{ display:flex; align-items:center; gap:.7rem; padding:.7rem .8rem; border:0; border-radius:var(--r-btn); background:transparent; color:var(--muted); font:600 .92rem var(--body); text-align:left; transition:color var(--t), background var(--t); }
 .ni svg{ width:19px; height:19px; stroke-width:2; flex-shrink:0; }
@@ -818,6 +825,7 @@ button:focus-visible, a:focus-visible, [data-action]:focus-visible, .swatch:focu
        border-right:0; border-top:1px solid var(--border); z-index:50;
        padding:.4rem calc(.6rem + env(safe-area-inset-right)) calc(.4rem + env(safe-area-inset-bottom)) calc(.6rem + env(safe-area-inset-left)); }
   .brand{ display:none; }
+  .sync-dot.op-avatar{ display:block; }
   .sb .nav{ display:contents; }
   .sb-profiel{ margin:0; }
   .content{ overflow:visible; padding:1.1rem;

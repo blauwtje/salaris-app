@@ -241,7 +241,7 @@
         ${navItem('instellingen', p, ICON.gear, 'Instellingen')}
       </nav>
       ${ctx.profielNaam ? `<button class="sb-profiel" data-action="wissel-profiel" title="Wissel profiel">
-        <span class="pf-avatar sm">${initialen(ctx.profielNaam)}</span>
+        <span class="pf-avatar sm">${initialen(ctx.profielNaam)}<span class="sync-dot op-avatar" data-staat="${ctx.syncStaat}" aria-hidden="true"></span></span>
         <span class="pf-naam">${esc(ctx.profielNaam)}</span>
         <span class="pf-chev">${ICON.wissel}</span></button>` : ''}
       <div class="sb-foot">${ICON.slot}Lokaal opgeslagen, automatisch gesynct.</div>`;
@@ -892,7 +892,22 @@
           <div class="seg" role="tablist" aria-label="Bedragen"><button data-action="set-weergave" data-val="netto" aria-selected="${w === 'netto'}">Netto</button><button data-action="set-weergave" data-val="bruto" aria-selected="${w === 'bruto'}">Bruto</button></div>
           <div class="hint" style="margin-top:.5rem">Netto is wat je overhoudt na belasting en premies, plus de onbelaste reiskosten.</div>
         </section>
+        ${syncSectieHTML(ctx)}
       </div></div>`;
+  }
+  // Op de telefoon is de zijbalk een onderbalk zonder logo, dus het bolletje naast "Salaris" valt
+  // daar weg. Deze sectie zegt in gewone taal hoe de sync ervoor staat - en bij een fout welke
+  // code de server gaf. Zonder dat zie je alleen 0 uren en niets dat verklaart waarom.
+  function syncSectieHTML(ctx) {
+    if (!ctx.syncBeschikbaar) return '';
+    return `<section class="set-sec"><h3 class="set-h">${ICON.slot}Synchronisatie</h3>
+      <div class="sync-rij">
+        <span class="sync-dot" data-staat="${ctx.syncStaat}" aria-hidden="true"></span>
+        <span class="sync-status" data-rol="sync-status">${esc(ctx.syncTekst)}</span>
+        <button class="btn ghost btn-sync" data-action="sync-nu">Nu synchroniseren</button>
+      </div>
+      <div class="hint" style="margin-top:.6rem">Je uren staan op dit apparaat en gaan per profiel naar je andere apparaten. Staat hier een fout, dan is je invoer wel bewaard en probeert de app het vanzelf opnieuw.</div>
+    </section>`;
   }
   function themaPreview(id, inst) {
     const sets = {
