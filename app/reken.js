@@ -49,9 +49,7 @@
       const basisloon = u * inst.uurloon;
       return { datum: dag.datum, vakantie: true, klokuren: u, betaaldeUren: u, basisloon, toeslag: 0, reiskosten: 0, brutoBelastbaar: basisloon, btLoon: 0 };
     }
-    const bl = blokken(dag);
-    const klok = bl.reduce((s, b) => s + uren.klokuren(b.van, b.tot), 0);
-    const betaald = bl.length > 1 ? klok : uren.betaaldeUren(klok);
+    const { klok, betaald } = uren.urenBlokken(blokken(dag));
     const basisloon = betaald * inst.uurloon;
     const toeslag = betaald * inst.uurloon * toeslagFractie(dag, inst);
     const reiskosten = opKantoor(dag) ? inst.reiskostenPerKantoordag : 0;

@@ -4,10 +4,7 @@
 })(typeof self !== 'undefined' ? self : this, function (uren, util) {
   function betaaldVan(data) {
     if (data && data.soort === 'vakantie') return Math.max(0, Number(data.uren) || 0);
-    let klok = uren.klokuren(data.van, data.tot);
-    const heeftExtraDiensten = data.extra && data.extra.length > 0;
-    if (heeftExtraDiensten) data.extra.forEach(e => { klok += uren.klokuren(e.van, e.tot); });
-    return heeftExtraDiensten ? klok : uren.betaaldeUren(klok);
+    return uren.urenBlokken([{ van: data.van, tot: data.tot }].concat(data.extra || [])).betaald;
   }
   function urenInWeek(dagen, isoVanMaandag) {
     const start = new Date(isoVanMaandag + 'T00:00:00');

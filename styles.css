@@ -457,7 +457,21 @@ body.sleept-widget .prullenbak{ display:flex; }
 .loc-ic.gemengd svg:last-child{ margin-left:-1px; opacity:.85; }
 .loc-ic.vrij{ color:var(--vrij); }
 
+/* Wanneer je werkte: tijden per blok en een dagbalk op een maandgedeelde as; gaten blijven leeg. */
+.c{ container-type:inline-size; }
+.c-tijden{ padding:3px 8px 5px; display:none; flex-direction:column; min-width:0; }
+.c-tijden .t-lijst{ display:none; flex-direction:column; }
+.c-tijden .t-r, .c-tijden .t-kort{ font:600 .66rem/1.25 var(--body); letter-spacing:-.01em; font-variant-numeric:tabular-nums; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.c-tijden .t-kort{ display:none; }
+/* De cel bepaalt wat past: eerst de kortste vorm (eerste begin tot laatste eind), daarna elk blok. */
+@container (min-width:90px){ .c-tijden{ display:flex; } .c-tijden .t-kort{ display:block; } }
+@container (min-width:104px){ .c-tijden .t-lijst{ display:flex; } .c-tijden .t-kort{ display:none; } }
+@media (min-width:1100px) and (min-height:861px){ .c-tijden .t-r, .c-tijden .t-kort{ font-size:.78rem; } .c-tijden{ padding-bottom:6px; } .c-balk{ height:8px; border-radius:4px; } }
+.c-balk{ position:relative; height:6px; margin:auto 8px 0; border-radius:3px; background:color-mix(in srgb, var(--verdiend) 20%, var(--surf3, var(--surf2))); overflow:hidden; flex-shrink:0; }
+.c-balk i{ position:absolute; top:0; bottom:0; background:var(--verdiend); box-shadow:0 0 0 .5px var(--surf2); }
+.c-balk i.thuis{ background:color-mix(in srgb, var(--verdiend) 55%, transparent); }
 /* gewerkte uren + bedrag onderin */
+.c-balk + .c-work{ margin-top:0; }
 .c-work{ margin-top:auto; padding:4px 8px 0; line-height:1.15; min-width:0; }
 .c-work .u{ display:flex; align-items:center; gap:4px; font:600 .78rem var(--body); color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .c-work .e{ display:block; font:800 .98rem var(--head); color:var(--verdiend-tekst); font-variant-numeric:tabular-nums; letter-spacing:-.02em; white-space:nowrap; }
@@ -892,12 +906,18 @@ button:focus-visible, a:focus-visible, [data-action]:focus-visible, .swatch:focu
   .c{ padding:4px 0; }
   .c .num{ font-size:.92rem; }
   .c-work{ padding:2px 6px 0; }
+  .c-tijden{ padding:1px 6px 3px; }
+  .c-tijden .t-lijst{ display:none !important; }
+  .c-tijden .t-kort{ display:block !important; }
+  .c-balk{ margin:auto 6px 0; }
   .c-work .u{ font-size:.7rem; }
   .c-work .e{ font-size:.85rem; }
   .c-special{ font-size:.58rem; padding:1px 6px 0; }
 }
 @media (min-width:901px) and (max-height:700px){
   .c .num{ font-size:.82rem; }
+  .c-tijden{ display:none !important; }
+  .c-balk{ height:4px; }
   .c-work .u{ font-size:.64rem; }
   .c-work .e{ font-size:.78rem; }
   .c-special .cs-lg{ display:none; }
@@ -918,6 +938,7 @@ button:focus-visible, a:focus-visible, [data-action]:focus-visible, .swatch:focu
   .c-top{ padding:0 4px; }
   .c .num{ font-size:.82rem; }
   .c-work{ padding:2px 3px 0; }
+  .c-balk{ margin:auto 3px 0; height:4px; }
   .c-work .u{ font-size:.6rem; flex-wrap:wrap; white-space:normal; row-gap:1px; }
   .c-work .u .loc-ic svg{ width:10px; height:10px; }
   .c-tsl{ font-size:.55rem; }

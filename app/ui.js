@@ -71,12 +71,12 @@
   function maandagVan(d) { const x = new Date(d); const off = (x.getDay() + 6) % 7; x.setDate(x.getDate() - off); return x; }
   const hoofdletter = s => s.charAt(0).toUpperCase() + s.slice(1);
   const maandNaam = (jaar, maand) => `${hoofdletter(MAAND[maand - 1])} ${jaar}`;
-  // "19 aug – 18 sep · betaald op 25 sep" - de vaste omschrijving van een loonperiode.
+  // "20 aug – 19 sep · betaald op 25 sep" - de vaste omschrijving van een loonperiode.
   function kortDatum(iso) { const d = new Date(iso + 'T00:00:00'); return `${d.getDate()} ${MAAND_KORT[d.getMonth()]}`; }
   function periodeBereik(jaar, maand) { const g = PER.grenzen(jaar, maand); return `${kortDatum(g.start)} – ${kortDatum(g.eind)}`; }
   function periodeOmschrijving(jaar, maand) { const g = PER.grenzen(jaar, maand); return `${periodeBereik(jaar, maand)} · betaald op ${kortDatum(g.betaaldag)}`; }
 
-  // Alle dagen die in de loonperiode (jaar, maand) worden uitbetaald: 19e vorige maand t/m 18e.
+  // Alle dagen die in de loonperiode (jaar, maand) worden uitbetaald: 20e vorige maand t/m 19e.
   function dagenInPeriode(state, jaar, maand) {
     const sleutel = PER.sleutel(jaar, maand);
     return Object.entries(state.dagen)
@@ -263,7 +263,7 @@
   }
 
   // ---------- OVERZICHT ----------
-  // Balk van de loonperiode (19e t/m 18e) met een stip waar vandaag staat. Vervangt de losse zin
+  // Balk van de loonperiode (20e t/m 19e) met een stip waar vandaag staat. Vervangt de losse zin
   // die de periodegrens uitlegde: je ziet de grens nu gewoon liggen.
   function periodeBalkHTML(jaar, maand, vandaagIso) {
     const g = PER.grenzen(jaar, maand);
@@ -476,7 +476,7 @@
     voortgang: { naam: 'Werkdag vandaag', uitleg: 'Je verdiensten lopen mee met je dienst.', render: vandaagWidgetHTML },
     reeks: { naam: 'Je ritme', uitleg: 'Dagen op rij en de laatste twee weken in beeld.', render: ritmeWidgetHTML },
     maanddetail: { naam: 'Salaris deze periode', uitleg: 'Wat er op de 25e binnenkomt, met de opbouw.', render: salarisWidgetHTML },
-    binnenkort: { naam: 'Binnenkort', uitleg: 'De 19e voor indienen en de 25e voor je salaris.', render: binnenkortWidgetHTML },
+    binnenkort: { naam: 'Binnenkort', uitleg: 'De 20e voor indienen en de 25e voor je salaris.', render: binnenkortWidgetHTML },
     week: {
       naam: 'Deze week', uitleg: 'Je uren en verdiensten van maandag tot zondag.',
       render: (maat, D, inert) => statHTML(maat, {
@@ -486,7 +486,7 @@
       }, inert),
     },
     maand: {
-      naam: 'Deze periode', uitleg: 'Je uren over de loonperiode van de 19e tot de 18e.',
+      naam: 'Deze periode', uitleg: 'Je uren over de loonperiode van de 20e t/m de 19e.',
       render: (maat, D, inert) => statHTML(maat, {
         icoon: ICON.maand, label: 'Deze periode', extra: periodeBereik(D.jaar, D.maand),
         waarde: `${U.fmtUren(D.urenPeriode).replace('u', '')}<small>u</small>`,
@@ -581,7 +581,7 @@
     let onderkop;
     if (live && live.bezig) onderkop = `Je bent bezig. Er staat <b>${U.fmtEuro(live.nu)}</b> ${weergave} op de teller.`;
     else if (live && live.voortgang.status === 'klaar') onderkop = `Werkdag klaar. <b>${U.fmtEuro(live.totaal)}</b> ${weergave} erbij vandaag.`;
-    else if (live) onderkop = `Vandaag van <b>${U.fmtTijd(vd.van)}</b> tot <b>${U.fmtTijd(REK.blokken(vd).slice(-1)[0].tot)}</b>, ${LOC_TEKST[locatieSoort(vd)].toLowerCase()}.`;
+    else if (live) onderkop = `Vandaag van <b>${U.fmtTijd(gesorteerdeBlokken(vd)[0].van)}</b> tot <b>${U.fmtTijd(gesorteerdeBlokken(vd).reduce((m, b) => U.parseTime(b.tot) > U.parseTime(m) ? b.tot : m, '00:00'))}</b>, ${LOC_TEKST[locatieSoort(vd)].toLowerCase()}.`;
     else if (vd && isVak(vd)) onderkop = `Vakantie vandaag. <b>${U.fmtUren(vakUren(vd))}</b> betaald, je periode loopt gewoon door.`;
     else if (D.vandaag.getDay() === 0 || D.vandaag.getDay() === 6) onderkop = 'Vrij vandaag. Je periode loopt gewoon door.';
     else if (D.reeks > 0) onderkop = `Je hebt <b>${D.reeks} dagen</b> op rij staan. Vul vandaag in als je gewerkt hebt.`;
@@ -597,7 +597,63 @@
   }
 
   // ---------- KALENDER ----------
-  function dagCelHTML(c, ctx) {
+  // Blokken op begintijd, zodat lijst en balk altijd van links naar rechts lezen.
+  const gesorteerdeBlokken = dag => REK.blokken(dag).slice().sort((a, b) => U.parseTime(a.van) - U.parseTime(b.van));
+  // Blok in minuten; een blok over middernacht wordt tot 24:00 getekend.
+  function blokMinuten(b) {
+    const van = U.parseTime(b.van);
+    let tot = U.parseTime(b.tot);
+    if (tot <= van) tot = 1440;
+    return { van, tot };
+  }
+  // Gedeelde tijdas van een maand: vroegste begin t/m laatste eind, op hele uren, minimaal 8 uur
+  // breed en geklemd op 0-24, zodat de balken van alle dagen met elkaar vergelijkbaar zijn.
+  function maandAs(dagen) {
+    let min = Infinity, max = -Infinity;
+    for (const d of dagen) {
+      for (const b of REK.blokken(d)) {
+        const m = blokMinuten(b);
+        if (m.van < min) min = m.van;
+        if (m.tot > max) max = m.tot;
+      }
+    }
+    if (min === Infinity) return { van: 480, tot: 1020 };
+    let van = Math.floor(min / 60) * 60, tot = Math.ceil(max / 60) * 60;
+    if (tot - van < 480) {
+      const extra = 480 - (tot - van);
+      van -= Math.floor(extra / 2); tot += Math.ceil(extra / 2);
+      if (van < 0) { tot -= van; van = 0; }
+      if (tot > 1440) { van -= tot - 1440; tot = 1440; }
+    }
+    return { van: Math.max(0, van), tot: Math.min(1440, tot) };
+  }
+  // Blokken van een dag als segmenten in procenten van de as; de gaten blijven leeg.
+  function dagTijdlijn(blokken, as) {
+    const breedte = as.tot - as.van;
+    return blokken.map(b => {
+      const m = blokMinuten(b);
+      const van = Math.max(m.van, as.van), tot = Math.min(m.tot, as.tot);
+      return { links: (van - as.van) / breedte * 100, breed: Math.max(0, tot - van) / breedte * 100, locatie: b.locatie === 'kantoor' ? 'kantoor' : 'thuis' };
+    }).filter(sg => sg.breed > 0);
+  }
+  // Kloktijd zo kort mogelijk voor een smalle kalendercel. Op een 12-uursklok past
+  // "8:00 AM–12:00 PM" niet; daar wordt het "8a–12p" (hele uren zonder :00), zoals in een agenda.
+  function celTijd(hhmm, twaalf) {
+    const [h, m] = hhmm.split(':').map(Number);
+    if (!(twaalf === undefined ? U.klok12() : twaalf)) return `${h}:${String(m).padStart(2, '0')}`;
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}${m ? ':' + String(m).padStart(2, '0') : ''}${h < 12 ? 'a' : 'p'}`;
+  }
+  const celBereik = (van, tot, twaalf) => `${celTijd(van, twaalf)}–${celTijd(tot, twaalf)}`;
+  function dagTijdenHTML(blokken, as) {
+    const regels = blokken.slice(0, 3).map(b => `<span class="t-r">${celBereik(b.van, b.tot)}</span>`).join('');
+    const kort = celBereik(blokken[0].van, blokken[blokken.length - 1].tot);
+    const segs = dagTijdlijn(blokken, as).map(sg =>
+      `<i class="${sg.locatie}" style="left:${sg.links.toFixed(2)}%;width:${sg.breed.toFixed(2)}%"></i>`).join('');
+    return `<div class="c-tijden" aria-hidden="true"><span class="t-lijst">${regels}</span><span class="t-kort">${kort}</span></div>
+      <div class="c-balk" aria-hidden="true">${segs}</div>`;
+  }
+  function dagCelHTML(c, ctx, as) {
     const { state, weergave } = ctx;
     if (c.uitMaand) return `<div class="c out"><div class="c-top"><span class="num">${c.dagNummer}</span></div></div>`;
     if (c.geblokkeerd) return `<button type="button" class="c holi" data-action="holi" data-naam="${esc(c.feestdag)}"><div class="c-top"><span class="num">${c.dagNummer}</span>${ICON.slot.replace('<svg', '<svg class="lock"')}</div><div class="holi-naam">${esc(c.feestdag)}</div></button>`;
@@ -613,8 +669,8 @@
       ? `<span class="mk note" title="${esc(dagData.notitie)}"><span class="sr-only">Heeft een opmerking</span>${ICON.notitie}</span>`
       : '';
 
-    // De 19e en de 25e bepalen het salarisritme; die twee dagen noemen zichzelf, ook als je
-    // er werkt. De 19e is meteen de eerste dag van de volgende loonperiode.
+    // De 20e en de 25e bepalen het salarisritme; die twee dagen noemen zichzelf, ook als je
+    // er werkt. De 20e is meteen de eerste dag van de volgende loonperiode.
     let voet = '';
     if (c.indiendag) voet = '<div class="c-special hr"><span class="cs-lg">Uren indienen</span><span class="cs-sm">Indienen</span></div>';
     else if (c.salarisdag) voet = '<div class="c-special pay">Salaris</div>';
@@ -628,6 +684,10 @@
         <span class="e">${eK(weergave === 'bruto' ? pd.bruto : pd.netto)}</span></div>`;
     }
 
+    // Tijden en balk alleen voor een gewerkte dag met blokken; vakantie en leeg hebben ze niet.
+    const dagBlokken = heeftWerk && !c.vakantie ? gesorteerdeBlokken(dagData) : [];
+    const tijden = dagBlokken.length && as ? dagTijdenHTML(dagBlokken, as) : '';
+
     const cls = ['c'];
     if (c.vandaag) cls.push('today');
     if (c.zondag) cls.push('weekend');
@@ -638,11 +698,12 @@
     // Een vakantiedag heeft geen werktijden om te slepen of te plakken.
     const draggable = heeftWerk && !c.vakantie ? ' draggable="true"' : '';
     const beschrijving = c.vakantie ? `: ${U.fmtUren(c.betaaldeUren)} vakantie`
-      : heeftWerk ? `: ${U.fmtUren(c.betaaldeUren)}, ${LOC_TEKST[locatieSoort(dagData)].toLowerCase()}`
+      : heeftWerk ? `: ${U.fmtUren(c.betaaldeUren)}, ${LOC_TEKST[locatieSoort(dagData)].toLowerCase()}${dagBlokken.length ? ', ' + dagBlokken.map(b => `${U.fmtTijd(b.van)} tot ${U.fmtTijd(b.tot)}`).join(' en ') : ''}`
       : ': nog niets ingevuld';
     const label = `${c.dagNummer} ${MAAND[new Date(c.iso + 'T00:00:00').getMonth()]}${beschrijving}`;
     return `<button type="button" class="${cls.join(' ')}"${draggable} data-action="dag" data-iso="${c.iso}" aria-label="${esc(label)}">
       <div class="c-top"><span class="num">${c.dagNummer}</span><span class="marks">${marks}</span></div>
+      ${tijden}
       ${werk}
       ${voet}
     </button>`;
@@ -678,7 +739,8 @@
   function kalenderPage(ctx) {
     const { state, zicht, vandaagIso } = ctx;
     const cellen = KAL.maandModel(zicht.jaar, zicht.maand, state.dagen, state.instellingen, ctx.vandaagIso);
-    const cellHTML = cellen.map(c => dagCelHTML(c, ctx)).join('');
+    const as = maandAs(cellen.filter(c => !c.uitMaand && !c.geblokkeerd && state.dagen[c.iso]).map(c => state.dagen[c.iso]));
+    const cellHTML = cellen.map(c => dagCelHTML(c, ctx, as)).join('');
 
     const VOLDAG = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
     const dow = VOLDAG.map((d, i) => `<b class="${i >= 5 ? 'we' : ''}" title="${d}"><span class="dow-lg">${d}</span><span class="dow-sm">${d.slice(0, 2)}</span></b>`).join('');
@@ -1246,5 +1308,5 @@
     return `<div class="meld ${m.soort || ''}">${esc(m.tekst)}${knop}</div>`;
   }
 
-  return { shellHTML, pageHTML, widgetGallerijHTML, widgetNaam: id => (WIDGETS[id] || {}).naam || id, dagDetailHTML, resultaatHTML, samenvattingHTML, reiskostenUitlegHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, correctieEditorHTML, vakantieEditorHTML, vakantieVoorstelHTML, vakantieDagHTML, profielKiezerHTML, meldingHTML };
+  return { maandAs, dagTijdlijn, celBereik, shellHTML, pageHTML, widgetGallerijHTML, widgetNaam: id => (WIDGETS[id] || {}).naam || id, dagDetailHTML, resultaatHTML, samenvattingHTML, reiskostenUitlegHTML, voortgangHTML, shiftSectieHTML, toeslagSectieHTML, correctieEditorHTML, vakantieEditorHTML, vakantieVoorstelHTML, vakantieDagHTML, profielKiezerHTML, meldingHTML };
 });

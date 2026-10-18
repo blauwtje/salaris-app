@@ -2,12 +2,12 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = factory();
   else { root.Salaris = root.Salaris || {}; root.Salaris.periode = factory(); }
 })(typeof self !== 'undefined' ? self : this, function () {
-  // Loonperiode: 19e vorige maand t/m 18e. Op de 19e wordt de urenkaart ingediend en op de
-  // 25e van diezelfde maand betaald. Dagen vanaf de 19e horen dus al bij de periode van de
+  // Loonperiode: 20e vorige maand t/m 19e. Op de 20e wordt de urenkaart ingediend en op de
+  // 25e van diezelfde maand betaald. Dagen vanaf de 20e horen dus al bij de periode van de
   // volgende maand. Een periode heet naar de maand waarin 'ie wordt uitbetaald ("september"
-  // = 19 augustus t/m 18 september). Correcties en de loonstrook gebruiken dezelfde sleutel.
-  const EINDDAG = 18;    // laatste dag van de periode
-  const INDIENDAG = 19;  // urenkaart indienen (= eerste dag van de volgende periode)
+  // = 20 augustus t/m 19 september). Correcties en de loonstrook gebruiken dezelfde sleutel.
+  const EINDDAG = 19;    // laatste dag van de periode
+  const INDIENDAG = 20;  // urenkaart indienen (= eerste dag van de volgende periode)
   const BETAALDAG = 25;
   const pad2 = n => String(n).padStart(2, '0');
   const sleutel = (jaar, maand) => `${jaar}-${pad2(maand)}`;
