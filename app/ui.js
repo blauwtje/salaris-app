@@ -636,21 +636,30 @@
       return { links: (van - as.van) / breedte * 100, breed: Math.max(0, tot - van) / breedte * 100, locatie: b.locatie === 'kantoor' ? 'kantoor' : 'thuis' };
     }).filter(sg => sg.breed > 0);
   }
-  // Kloktijd zo kort mogelijk voor een smalle kalendercel. Op een 12-uursklok past
-  // "8:00 AM–12:00 PM" niet; daar wordt het "8a–12p" (hele uren zonder :00), zoals in een agenda.
-  function celTijd(hhmm, twaalf) {
+  // Kloktijd voor een kalendercel in twee vormen: vol ("8:30", "14:00") en compact ("8:30", "14":
+  // hele uren zonder :00). Op een 12-uursklok is het in beide vormen "8:30a" of "12p".
+  function celTijd(hhmm, twaalf, compact) {
     const [h, m] = hhmm.split(':').map(Number);
-    if (!(twaalf === undefined ? U.klok12() : twaalf)) return `${h}:${String(m).padStart(2, '0')}`;
+    const mm = String(m).padStart(2, '0');
+    if (!(twaalf === undefined ? U.klok12() : twaalf)) return compact && !m ? `${h}` : `${h}:${mm}`;
     const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${h12}${m ? ':' + String(m).padStart(2, '0') : ''}${h < 12 ? 'a' : 'p'}`;
+    return `${h12}${m ? ':' + mm : ''}${h < 12 ? 'a' : 'p'}`;
   }
-  const celBereik = (van, tot, twaalf) => `${celTijd(van, twaalf)}–${celTijd(tot, twaalf)}`;
-  function dagTijdenHTML(blokken, as) {
-    const regels = blokken.slice(0, 3).map(b => `<span class="t-r">${celBereik(b.van, b.tot)}</span>`).join('');
-    const kort = celBereik(blokken[0].van, blokken[blokken.length - 1].tot);
+  const celBereik = (van, tot, twaalf, compact) => `${celTijd(van, twaalf, compact)}–${celTijd(tot, twaalf, compact)}`;
+  // Elk blok op een eigen regel met een locatiestreepje; de cel kiest met een container query
+  // tussen vol en compact. Vanaf vier blokken: de eerste twee en "+N meer". Nooit afgekapt.
+  function dagTijdenHTML(blokken, as, nuMin) {
+    const teveel = blokken.length > 3;
+    const zichtbaar = teveel ? blokken.slice(0, 2) : blokken;
+    const regels = zichtbaar.map(b => {
+      const m = blokMinuten(b);
+      const bezig = nuMin !== undefined && nuMin >= m.van && nuMin < m.tot;
+      return `<span class="t-r${bezig ? ' nu' : ''}"><b class="${b.locatie === 'kantoor' ? 'kantoor' : 'thuis'}"></b><span class="t-vol">${celBereik(b.van, b.tot, undefined, false)}</span><span class="t-cmp">${celBereik(b.van, b.tot, undefined, true)}</span></span>`;
+    }).join('');
+    const meer = teveel ? `<span class="t-meer">+${blokken.length - 2} meer</span>` : '';
     const segs = dagTijdlijn(blokken, as).map(sg =>
       `<i class="${sg.locatie}" style="left:${sg.links.toFixed(2)}%;width:${sg.breed.toFixed(2)}%"></i>`).join('');
-    return `<div class="c-tijden" aria-hidden="true"><span class="t-lijst">${regels}</span><span class="t-kort">${kort}</span></div>
+    return `<div class="c-tijden" aria-hidden="true">${regels}${meer}</div>
       <div class="c-balk" aria-hidden="true">${segs}</div>`;
   }
   function dagCelHTML(c, ctx, as) {
@@ -686,7 +695,7 @@
 
     // Tijden en balk alleen voor een gewerkte dag met blokken; vakantie en leeg hebben ze niet.
     const dagBlokken = heeftWerk && !c.vakantie ? gesorteerdeBlokken(dagData) : [];
-    const tijden = dagBlokken.length && as ? dagTijdenHTML(dagBlokken, as) : '';
+    const tijden = dagBlokken.length && as ? dagTijdenHTML(dagBlokken, as, c.vandaag ? ctx.nuMin : undefined) : '';
 
     const cls = ['c'];
     if (c.vandaag) cls.push('today');
